@@ -1,0 +1,33 @@
+# .claude/HOW-X-WORKS.md — Flow/Process Write-ups
+
+Entry point for "how does flow X work" questions (as distinct from `.claude/DICTIONARY.md`, which
+is single-term definitions, and `docs/**`, which explains one file/module rather than a
+cross-cutting flow).
+
+**Check here first** when asked to explain a multi-step process end-to-end — before any
+code-intelligence tool, before `docs/`, before reading source. If the flow isn't
+documented yet, research it (fall through to `CLAUDE.md`'s source-of-truth order), then **save the
+write-up** here so the next lookup is instant instead of re-traced through the codebase again.
+
+| Flow | Read |
+|---|---|
+| `<example-flow>` (delete once you have real entries) | [`how-x-works/_example-flow.md`](how-x-works/_example-flow.md) |
+
+## Adding/updating an entry
+
+- One file per flow, kebab-case filename describing the flow end-to-end (`request-lifecycle.md`,
+  `checkout-flow.md`).
+- Ground every step in a `file:line` citation — this is not a place for paraphrased-from-memory
+  flows.
+- Add a row to the table above.
+- If a later finding changes or extends a flow already written up here, update that file in place
+  (with a fresh **Analysis date**) rather than creating a duplicate.
+
+## Why this saves real work
+
+A cross-cutting flow (auth, checkout, a background job pipeline) is expensive to trace the first
+time — it touches many files and the connections between them aren't visible from any single one.
+Once someone has traced it and written it down with citations, every later session reads a page
+instead of repeating the multi-file trace. Treat a stale entry as a bug: if you read one and find
+it no longer matches the code, fix it in place rather than silently working around the
+discrepancy — the next reader deserves the corrected version, not a repeat of your confusion.

@@ -1,0 +1,10 @@
+.DS_Store
+build/
+.codegraph/
+.claude/settings.local.json
+
+.claude/working-sessions/*/develop/evidence/**
+!.claude/working-sessions/*/develop/evidence/**/
+!.claude/working-sessions/*/develop/evidence/**/*.md
+!.claude/working-sessions/*/develop/evidence/**/*.py
+browser-source/dist/
