@@ -148,3 +148,60 @@ PIC, the plugin compile under `-Werror`, the link and the packaging checks.
   has (D6). This feeds P4-007 (README) and `docs/concerns.md`.
 - Next unverified steps: the link itself, then the export, `TEXTREL`, `ldd`, `dlopen`, `.deb` and
   packaged-export checks.
+
+## CI iteration 3 (run 45142685335, commit 64c5010)
+
+**Result:** macOS passed. On Linux, *Record libobs version* failed:
+`awk: fatal: cannot open file '/usr/include/obs/obs-config.h'`.
+
+**Cause (from comparing run 2 and run 3):** the PPA was down, not moved. In run 3,
+`apt-get update` got `503 Service Unavailable` from
+`ppa.launchpadcontent.net/obsproject/obs-studio/ubuntu/dists/noble/InRelease`, twice, once from
+`add-apt-repository` and once from our own update. apt only warns about that ("Some index files
+failed to download. They have been ignored"), so the install quietly took **Ubuntu's own
+`obs-studio 30.0.2+dfsg-3build1` plus `libobs0t64`** from noble/universe. Ubuntu ships the libobs
+headers in a separate `libobs-dev`, so there was no `obs-config.h`. Run 2 had fetched the PPA's
+`obs-studio 32.2.0-0obsproject1~noble`, which bundles the headers and CMake config under
+`/usr/include/obs`. The PPA package itself did not change between the runs.
+
+If the version check hadn't failed first, the build would have hit the same problem at
+`find_package(libobs)`, or worse, built against distro OBS 30.0.2 and produced a `.deb` with a
+different OBS floor.
+
+**Fix (`.github/workflows/build-plugin.yaml`, Linux job):**
+- *Install build dependencies*:
+  - `add-apt-repository --yes --no-update`, then `apt-get update --error-on=any`, retried up to 5
+    times with growing waits (20, 40, 60, 80 s), so a temporary 503 is retried and a lasting one
+    fails the job.
+  - Before installing, `apt-cache policy obs-studio` is printed and the candidate must contain
+    `obsproject`. Otherwise the job fails with "refusing to build against the distro OBS".
+- *Record libobs version*:
+  - The installed `obs-studio` version must contain `obsproject`.
+  - The header is found through the package database (`dpkg-query -S '*/obs-config.h'`) instead
+    of a fixed path. If no package provides it, the job fails, naming the problem and listing the
+    installed OBS packages.
+  - It fails if the `LIBOBS_API_*_VER` lines are missing.
+  - It logs the header path next to the package and API version.
+- I did not fall back to Ubuntu's `libobs-dev`. C-009 picked the PPA as the Linux libobs source,
+  and a silent fallback would quietly change the Linux OBS floor. `plugin/cmake` is unchanged; the
+  template's `find_package(libobs)` path is the PPA package's, as in run 2.
+
+**Local checks:**
+- actionlint with shellcheck: exit 0. The install script parses (`bash -n`).
+- With stand-in `dpkg-query` and `apt-cache`:
+  - the PPA package gives `libobs API version: 32.2.0`, exit 0;
+  - the distro package fails with `installed obs-studio 30.0.2+dfsg-3build1 is not from ppa:obsproject/obs-studio`;
+  - a missing header fails with `no installed package provides obs-config.h`;
+  - a distro candidate fails the pre-install guard.
+
+**C-009 note:** the Linux OBS floor is whatever the PPA has when the job runs. It was 32.2.0 in
+run 2 (libobs API 32.2.0, `libobs.so.30`). Because the PPA can move between runs, the job records it
+on every run (log and run summary). The README and release notes should name the floor from the run
+that built the shipped `.deb`. The PPA only keeps its current version, so a rebuild later may raise
+the floor.
+
+**Files changed in this iteration:** `.github/workflows/build-plugin.yaml` (Linux *Install build
+dependencies* and *Record libobs version*). This handoff file and `session.log`.
+
+**Still unverified:** everything from the link onward (the iteration 2 `LINK_GROUP` fix has not had
+a CI run yet).

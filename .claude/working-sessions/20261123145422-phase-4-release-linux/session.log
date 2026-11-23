@@ -19,3 +19,6 @@
 2026-11-23T08:53:44Z  orchestrator  CI run 45141112632 (995831c): macOS success; Linux core+plugin compile OK under GCC 13, link fails (NSEEL_HOSTSTUB_* undefined from libprojectM_ns-eel2.a, archive order). Sent back to developer
 2026-11-23T08:54:04Z  developer  CI iteration 2: Linux link NSEEL_HOSTSTUB_* undefined; investigating
 2026-11-23T08:56:10Z  developer  CI iteration 2 fix done: LINK_GROUP RESCAN for core/ns-eel2/eval cycle; macOS rebuild ok; ready to push
+2026-11-23T09:00:33Z  orchestrator  CI run 45142685335 (64c5010): macOS success; Linux failed pre-build at libobs version step (obs-config.h not at /usr/include/obs). Sent back to developer
+2026-11-23T09:00:46Z  developer  CI iteration 3: Record libobs version step cannot find obs-config.h; comparing runs 2 and 3
+2026-11-23T09:01:50Z  developer  CI iteration 3 fix done: PPA 503 fallback to distro OBS guarded (retry, --error-on=any, origin checks, header via dpkg-query); actionlint clean; ready to push

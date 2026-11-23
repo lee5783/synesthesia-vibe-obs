@@ -270,8 +270,24 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo add-apt-repository --yes ppa:obsproject/obs-studio
-          sudo apt-get update
+          sudo add-apt-repository --yes --no-update ppa:obsproject/obs-studio
+          for attempt in 1 2 3 4 5; do
+            if sudo apt-get update --error-on=any; then
+              break
+            fi
+            if [[ "${attempt}" == "5" ]]; then
+              echo "::error::apt-get update failed 5 times; ppa:obsproject/obs-studio or an Ubuntu mirror is unreachable"
+              exit 1
+            fi
+            echo "apt-get update failed (attempt ${attempt}), retrying in $((attempt * 20)) s"
+            sleep "$((attempt * 20))"
+          done
+          apt-cache policy obs-studio
+          candidate="$(apt-cache policy obs-studio | awk '/Candidate:/ { print $2 }')"
+          if [[ "${candidate}" != *obsproject* ]]; then
+            echo "::error::obs-studio candidate '${candidate}' is not from ppa:obsproject/obs-studio; refusing to build against the distro OBS"
+            exit 1
+          fi
           sudo apt-get install -y --no-install-recommends \
             autoconf \
             autoconf-archive \
@@ -311,8 +327,23 @@ jobs:
       - name: Record libobs version
         run: |
           obs_package="$(dpkg-query -W -f='${Package} ${Version}' obs-studio)"
-          api_version="$(awk '/#define LIBOBS_API_(MAJOR|MINOR|PATCH)_VER/ { printf "%s%s", sep, $3; sep = "." }' /usr/include/obs/obs-config.h)"
+          if [[ "${obs_package}" != *obsproject* ]]; then
+            echo "::error::installed ${obs_package} is not from ppa:obsproject/obs-studio"
+            exit 1
+          fi
+          config_header="$(dpkg-query -S '*/obs-config.h' 2>/dev/null | awk -F ': ' '{ print $2; exit }' || true)"
+          if [[ -z "${config_header}" || ! -f "${config_header}" ]]; then
+            echo "::error::no installed package provides obs-config.h; libobs development headers are missing"
+            dpkg-query -W -f='${Package} ${Version}\n' | grep -i obs || true
+            exit 1
+          fi
+          api_version="$(awk '/#define LIBOBS_API_(MAJOR|MINOR|PATCH)_VER/ { printf "%s%s", sep, $3; sep = "." }' "${config_header}")"
+          if [[ -z "${api_version}" ]]; then
+            echo "::error::LIBOBS_API_*_VER not found in ${config_header}"
+            exit 1
+          fi
           echo "obs-studio package: ${obs_package}"
+          echo "libobs headers: ${config_header}"
           echo "libobs API version: ${api_version}"
           {
             echo "### Linux libobs"
