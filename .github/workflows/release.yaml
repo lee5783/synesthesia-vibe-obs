@@ -1,0 +1,172 @@
+#
+#  release.yaml
+#  SynesthesiaVibeOBS
+#
+#  Created by lee5783 on 2026-11-23.
+#
+
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CORE_REPOSITORY: lee5783/synesthesia-vibe
+  CORE_VERSION: v0.7.0
+
+jobs:
+  validate:
+    name: Validate tag
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+      release-version: ${{ steps.tag.outputs.release-version }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Validate tag
+        id: tag
+        env:
+          TAG: ${{ github.ref_name }}
+          RELEASE_FINAL_ALLOWED: ${{ vars.RELEASE_FINAL_ALLOWED }}
+        run: |
+          version="$(jq -r .version plugin/buildspec.json)"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::plugin/buildspec.json version '${version}' is not X.Y.Z"
+            exit 1
+          fi
+          if [[ ! "${TAG}" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-(beta|rc)\.[0-9]+)?$ ]]; then
+            echo "::error::tag '${TAG}' must be v<X.Y.Z>, v<X.Y.Z>-beta.<N> or v<X.Y.Z>-rc.<N>"
+            exit 1
+          fi
+          tag_version="${BASH_REMATCH[1]}"
+          suffix="${BASH_REMATCH[2]}"
+          if [[ "${tag_version}" != "${version}" ]]; then
+            echo "::error::tag '${TAG}' names version ${tag_version}, but plugin/buildspec.json says ${version}"
+            exit 1
+          fi
+          if [[ -n "${suffix}" ]]; then
+            prerelease=true
+          elif [[ "${RELEASE_FINAL_ALLOWED}" == "true" ]]; then
+            prerelease=false
+          else
+            echo "::error::final tag '${TAG}' is refused until the repository variable RELEASE_FINAL_ALLOWED is 'true'; tag v${version}-beta.<N> or v${version}-rc.<N> instead"
+            exit 1
+          fi
+          echo "tag ${TAG}: version ${version}, prerelease ${prerelease}"
+          {
+            echo "version=${version}"
+            echo "release-version=${TAG#v}"
+            echo "prerelease=${prerelease}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Validate core version
+        run: |
+          core_commit="$(git rev-parse HEAD:external/synesthesia-vibe)"
+          tag_commit="$(git ls-remote "https://github.com/${CORE_REPOSITORY}.git" "refs/tags/${CORE_VERSION}" "refs/tags/${CORE_VERSION}^{}" | awk 'END { print $1 }')"
+          if [[ "${core_commit}" != "${tag_commit}" ]]; then
+            echo "::error::the core submodule is at ${core_commit}, but ${CORE_REPOSITORY} ${CORE_VERSION} is ${tag_commit:-missing}; update CORE_VERSION in release.yaml"
+            exit 1
+          fi
+          echo "core ${CORE_REPOSITORY} ${CORE_VERSION} at ${core_commit}"
+
+  build:
+    name: Build
+    needs: validate
+    uses: ./.github/workflows/build-plugin.yaml
+    with:
+      config: Release
+
+  release:
+    name: Create draft release
+    needs:
+      - validate
+      - build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.validate.outputs.version }}
+      RELEASE_VERSION: ${{ needs.validate.outputs.release-version }}
+      PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+    steps:
+      - name: Download macOS packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: synesthesia-vibe-obs-${{ needs.validate.outputs.version }}-macos-arm64
+          path: assets
+
+      - name: Write checksums
+        working-directory: assets
+        run: |
+          asset_base="synesthesia-vibe-obs-${VERSION}"
+          for asset in "${asset_base}-macos-arm64.pkg" "${asset_base}-macos-arm64.zip"; do
+            if [[ ! -f "${asset}" ]]; then
+              echo "::error::missing release asset ${asset}"
+              exit 1
+            fi
+          done
+          sha256sum "${asset_base}-macos-arm64.pkg" "${asset_base}-macos-arm64.zip" > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Write release notes
+        run: |
+          repository_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          asset_base="synesthesia-vibe-obs-${VERSION}"
+          cat > "${RUNNER_TEMP}/release-notes.md" <<NOTES
+          SynesthesiaVibe Visualizer ${RELEASE_VERSION}, a MilkDrop-preset music visualizer source for OBS Studio.
+
+          ## Downloads
+
+          - \`${asset_base}-macos-arm64.pkg\`: macOS installer, Apple Silicon only.
+          - \`${asset_base}-macos-arm64.zip\`: the same plugin bundle for a manual install.
+          - \`SHA256SUMS.txt\`: check the downloads with \`shasum -a 256 -c SHA256SUMS.txt\`.
+
+          ## Before you install
+
+          The macOS plugin is ad-hoc signed and not notarized, so macOS Gatekeeper warns about it. Follow the install steps in [plugin/README.md](${repository_url}/blob/${TAG}/plugin/README.md).
+
+          ## Linux
+
+          Linux is built and checked in CI but has not been tested in OBS yet, so no Linux package is attached to this release.
+
+          ## Source
+
+          The plugin is GPL-2.0-or-later and includes the MIT-licensed SynesthesiaVibe core ${CORE_VERSION}.
+
+          - This release: ${repository_url}/tree/${TAG}
+          - SynesthesiaVibe core ${CORE_VERSION}: ${GITHUB_SERVER_URL}/${CORE_REPOSITORY}/tree/${CORE_VERSION}
+
+          GitHub's "Source code" archives leave out the core submodule. Get it from the core link above, or clone this repository with \`git clone --recursive\`.
+          NOTES
+          cat "${RUNNER_TEMP}/release-notes.md"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=(--draft --verify-tag --title "SynesthesiaVibe Visualizer ${RELEASE_VERSION}" --notes-file "${RUNNER_TEMP}/release-notes.md")
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            flags+=(--prerelease)
+          fi
+          asset_base="synesthesia-vibe-obs-${VERSION}"
+          gh release create "${TAG}" \
+            "assets/${asset_base}-macos-arm64.pkg" \
+            "assets/${asset_base}-macos-arm64.zip" \
+            assets/SHA256SUMS.txt \
+            --repo "${GITHUB_REPOSITORY}" \
+            "${flags[@]}"

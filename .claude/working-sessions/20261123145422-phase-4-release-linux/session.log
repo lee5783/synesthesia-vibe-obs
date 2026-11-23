@@ -1,0 +1,15 @@
+2026-11-23T07:54:22Z  orchestrator  session start: start phase 4 on top of this (branch feature/phase-4-release-linux off feature/plugin-phase-2-macos, PR #2 unmerged)
+2026-11-23T07:54:43Z  orchestrator  Gate 0: CodeGraph reachable (MCP codegraph_explore answered this turn). Skipped: intake (no ticket), ui-ux (no design), standalone impact analysis (planner covers Linux GL-loader/CMake impact via CodeGraph). Delegating planner
+2026-11-23T07:55:10Z  planner  start: planning Phase 4 (release + Linux) items 1-4
+2026-11-23T08:04:59Z  planner  done: wrote plan/input-plan.md + 4 output-plan-*.md (12 tasks P4-001..P4-012, 29 concerns, 12 marked G1)
+2026-11-23T08:05:04Z  planner  correction: 10 concerns are marked G1 (C-001,002,003,006,008,016,017,020,021,024), not 12
+2026-11-23T08:08:29Z  orchestrator  Gate 1 resolved with user (see plan/output-plan-gate-1-decisions.md). P4-009 dropped, P4-010 closed, P4-008 user-owned. Starting develop: P4-001 → P4-007
+2026-11-23T08:09:01Z  developer  start: reading role file, delegated rules and plan for P4-001..P4-006
+2026-11-23T08:12:52Z  developer  task START P4-001 (input-dev.md written; capturing macOS before-baseline first)
+2026-11-23T08:31:26Z  developer  P4-002..P4-006 implemented sequentially after P4-001 in this session; macOS evidence and actionlint done; writing handoffs
+2026-11-23T08:31:26Z  developer  task END P4-001 (output-P4-001.md written)
+2026-11-23T08:31:56Z  developer  task END P4-002 (output-P4-002.md written)
+2026-11-23T08:32:16Z  developer  task END P4-003 (output-P4-003.md written)
+2026-11-23T08:32:38Z  developer  task END P4-004 (output-P4-004.md written)
+2026-11-23T08:32:58Z  developer  task END P4-005 (output-P4-005.md written; Linux unverified until CI)
+2026-11-23T08:33:20Z  developer  task END P4-006 (output-P4-006.md written; ready to push)

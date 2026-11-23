@@ -7,6 +7,7 @@
 
 #include "visualizer-source.hpp"
 #include "audio-ring.hpp"
+#include "opengl-loader.hpp"
 
 #include <media-io/audio-resampler.h>
 #include <obs-module.h>
@@ -16,9 +17,6 @@
 #include <util/dstr.h>
 #include <util/platform.h>
 #include <util/task.h>
-
-#include <OpenGL/gl3.h>
-#include <dlfcn.h>
 
 #include <algorithm>
 #include <array>
@@ -65,7 +63,6 @@ constexpr const char *hotkey_previous_preset = "SynesthesiaVibe.PreviousPreset";
 constexpr const char *hotkey_random_preset = "SynesthesiaVibe.RandomPreset";
 constexpr const char *hotkey_pause_auto_cycle = "SynesthesiaVibe.PauseAutoCycle";
 constexpr const char *preset_extension = ".milk";
-constexpr const char *opengl_framework_path = "/System/Library/Frameworks/OpenGL.framework/OpenGL";
 constexpr uint32_t core_sample_rate = 44100;
 constexpr size_t core_audio_frames = 2304;
 constexpr size_t audio_ring_frames = 65536;
@@ -214,12 +211,6 @@ template<typename Call> void with_core_gl_state(Call call)
 {
 	gl_state_guard guard;
 	call();
-}
-
-void *opengl_get_proc(const char *name)
-{
-	static void *const opengl = dlopen(opengl_framework_path, RTLD_LAZY | RTLD_LOCAL);
-	return opengl ? dlsym(opengl, name) : nullptr;
 }
 
 double milliseconds_since(uint64_t start)

@@ -7,21 +7,36 @@
 
 cmake_minimum_required(VERSION 3.28...3.30)
 
+cmake_host_system_information(RESULT SYNESTHESIA_VIBE_HOST_PROCESSOR QUERY OS_PLATFORM)
+
 if(
-  NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin"
-  OR NOT CMAKE_GENERATOR STREQUAL "Xcode"
-  OR NOT "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64"
+  NOT (
+    CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin"
+    AND CMAKE_GENERATOR STREQUAL "Xcode"
+    AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64"
+  )
+  AND NOT (
+    CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux"
+    AND CMAKE_GENERATOR STREQUAL "Ninja"
+    AND SYNESTHESIA_VIBE_HOST_PROCESSOR STREQUAL "x86_64"
+  )
 )
   message(
     FATAL_ERROR
-    "SynesthesiaVibe for OBS builds only on macOS, with the Xcode generator, for arm64 alone. "
-    "Detected host '${CMAKE_HOST_SYSTEM_NAME}', generator '${CMAKE_GENERATOR}', "
+    "SynesthesiaVibe for OBS builds only on macOS, with the Xcode generator, for arm64 alone, "
+    "or on Linux, with the Ninja generator, for x86_64. "
+    "Detected host '${CMAKE_HOST_SYSTEM_NAME}' (${SYNESTHESIA_VIBE_HOST_PROCESSOR}), generator '${CMAKE_GENERATOR}', "
     "CMAKE_OSX_ARCHITECTURES '${CMAKE_OSX_ARCHITECTURES}'. "
-    "Configure with 'cmake --preset macos-arm64' and build with 'cmake --build --preset macos-arm64'."
+    "On macOS configure with 'cmake --preset macos-arm64' and build with 'cmake --build --preset macos-arm64'. "
+    "On Linux configure with 'cmake --preset ubuntu-x86_64' and build with 'cmake --build --preset ubuntu-x86_64'."
   )
 endif()
 
-if(NOT DEFINED PLUGIN_BUILD_NUMBER AND NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/.CMakeBuildNumber")
+if(
+  NOT DEFINED PLUGIN_BUILD_NUMBER
+  AND NOT "$ENV{CI}"
+  AND NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/.CMakeBuildNumber"
+)
   file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/.CMakeBuildNumber" "0")
 endif()
 
@@ -31,6 +46,10 @@ project(${_name} VERSION ${_version})
 
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" OFF)
 option(ENABLE_QT "Use Qt functionality" OFF)
+
+if(OS_LINUX)
+  set(CPACK_PACKAGE_CONTACT "lee5783 <lee5783@users.noreply.github.com>")
+endif()
 
 include(compilerconfig)
 include(defaults)
@@ -71,6 +90,29 @@ set(SYNESTHESIA_VIBE_CORE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/synesthesia-vi
 set(SYNESTHESIA_VIBE_CORE_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/synesthesia-vibe-core/install")
 set(SYNESTHESIA_VIBE_CORE_LIBRARY "${SYNESTHESIA_VIBE_CORE_INSTALL_DIR}/lib/libSynesthesiaVibeCore.a")
 
+if(OS_MACOS)
+  set(
+    SYNESTHESIA_VIBE_CORE_PLATFORM_ARGS
+    -DVCPKG_TARGET_TRIPLET=arm64-osx
+    "-DVCPKG_OVERLAY_TRIPLETS=${SYNESTHESIA_VIBE_CORE_SOURCE_DIR}/triplets"
+    -DCMAKE_OSX_ARCHITECTURES=arm64
+    "-DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+  )
+  set(SYNESTHESIA_VIBE_CORE_DEPENDENCY_LIBRARIES "")
+else()
+  set(
+    SYNESTHESIA_VIBE_CORE_PLATFORM_ARGS
+    -DVCPKG_TARGET_TRIPLET=x64-linux
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    -DCMAKE_INSTALL_LIBDIR=lib
+  )
+  set(
+    SYNESTHESIA_VIBE_CORE_DEPENDENCY_LIBRARIES
+    "${SYNESTHESIA_VIBE_CORE_INSTALL_DIR}/lib/libprojectM_ns-eel2.a"
+    "${SYNESTHESIA_VIBE_CORE_INSTALL_DIR}/lib/libprojectM_eval.a"
+  )
+endif()
+
 ExternalProject_Add(
   synesthesia-vibe-core
   SOURCE_DIR "${SYNESTHESIA_VIBE_CORE_SOURCE_DIR}"
@@ -80,10 +122,7 @@ ExternalProject_Add(
   CMAKE_ARGS
     "-DCMAKE_MAKE_PROGRAM=${SYNESTHESIA_VIBE_NINJA}"
     "-DCMAKE_TOOLCHAIN_FILE=$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-    -DVCPKG_TARGET_TRIPLET=arm64-osx
-    "-DVCPKG_OVERLAY_TRIPLETS=${SYNESTHESIA_VIBE_CORE_SOURCE_DIR}/triplets"
-    -DCMAKE_OSX_ARCHITECTURES=arm64
-    "-DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+    ${SYNESTHESIA_VIBE_CORE_PLATFORM_ARGS}
     -DCMAKE_BUILD_TYPE=Release
     -DSYNESTHESIA_VIBE_GL_DEV=ON
     -DSYNESTHESIA_VIBE_BACKEND=gl
@@ -91,7 +130,7 @@ ExternalProject_Add(
     "-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>"
   BUILD_COMMAND "${CMAKE_COMMAND}" --build <BINARY_DIR> --target SynesthesiaVibeCore
   INSTALL_COMMAND "${CMAKE_COMMAND}" --install <BINARY_DIR>
-  BUILD_BYPRODUCTS "${SYNESTHESIA_VIBE_CORE_LIBRARY}"
+  BUILD_BYPRODUCTS "${SYNESTHESIA_VIBE_CORE_LIBRARY}" ${SYNESTHESIA_VIBE_CORE_DEPENDENCY_LIBRARIES}
   BUILD_ALWAYS TRUE
   USES_TERMINAL_CONFIGURE TRUE
   USES_TERMINAL_BUILD TRUE
@@ -106,32 +145,70 @@ set_target_properties(
     IMPORTED_LOCATION "${SYNESTHESIA_VIBE_CORE_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${SYNESTHESIA_VIBE_CORE_INSTALL_DIR}/include"
 )
-target_link_libraries(
-  SynesthesiaVibe::Core
-  INTERFACE
-    "-framework Foundation"
-    "-framework AVFoundation"
-    "-framework CoreAudio"
-    "-framework OpenGL"
-    "-framework AppKit"
-    "-framework CoreVideo"
-    "-framework IOSurface"
-    "-framework QuartzCore"
-)
+
+if(OS_MACOS)
+  target_link_libraries(
+    SynesthesiaVibe::Core
+    INTERFACE
+      "-framework Foundation"
+      "-framework AVFoundation"
+      "-framework CoreAudio"
+      "-framework OpenGL"
+      "-framework AppKit"
+      "-framework CoreVideo"
+      "-framework IOSurface"
+      "-framework QuartzCore"
+  )
+else()
+  find_package(Threads REQUIRED)
+  target_link_libraries(
+    SynesthesiaVibe::Core
+    INTERFACE ${SYNESTHESIA_VIBE_CORE_DEPENDENCY_LIBRARIES} Threads::Threads ${CMAKE_DL_LIBS}
+  )
+endif()
 
 add_dependencies(${CMAKE_PROJECT_NAME} synesthesia-vibe-core)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE SynesthesiaVibe::Core)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE GL_SILENCE_DEPRECATION)
-set_target_properties(
-  ${CMAKE_PROJECT_NAME}
-  PROPERTIES XCODE_ATTRIBUTE_EXPORTED_SYMBOLS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/exported-symbols.txt"
-)
 
 target_sources(
   ${CMAKE_PROJECT_NAME}
-  PRIVATE src/audio-ring.cpp src/audio-ring.hpp src/plugin-main.cpp src/visualizer-source.cpp src/visualizer-source.hpp
+  PRIVATE
+    src/audio-ring.cpp
+    src/audio-ring.hpp
+    src/opengl-loader.hpp
+    src/plugin-main.cpp
+    src/visualizer-source.cpp
+    src/visualizer-source.hpp
 )
+
+if(OS_MACOS)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/opengl-loader-macos.cpp)
+  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE GL_SILENCE_DEPRECATION)
+  set_target_properties(
+    ${CMAKE_PROJECT_NAME}
+    PROPERTIES XCODE_ATTRIBUTE_EXPORTED_SYMBOLS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/exported-symbols.txt"
+  )
+else()
+  find_package(OpenGL REQUIRED COMPONENTS OpenGL EGL)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/opengl-loader-linux.cpp)
+  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE GL_GLEXT_PROTOTYPES EGL_NO_X11)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OpenGL::OpenGL OpenGL::EGL)
+  target_link_options(
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE
+      "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exported-symbols.map"
+      "-Wl,--exclude-libs,ALL"
+      "-Wl,--no-undefined"
+  )
+  set_property(
+    TARGET ${CMAKE_PROJECT_NAME}
+    APPEND
+    PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/exported-symbols.map"
+  )
+endif()
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 
-configure_file(packaging/macos/distribution.in "${CMAKE_CURRENT_BINARY_DIR}/distribution" @ONLY)
+if(OS_MACOS)
+  configure_file(packaging/macos/distribution.in "${CMAKE_CURRENT_BINARY_DIR}/distribution" @ONLY)
+endif()
