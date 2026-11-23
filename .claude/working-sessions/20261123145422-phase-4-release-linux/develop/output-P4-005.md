@@ -132,3 +132,19 @@ cache restore, count, check and save in both jobs). This handoff file and `sessi
 
 **Still unverified:** whatever comes after `vcpkg install` on Linux: the core compile under GCC 13,
 PIC, the plugin compile under `-Werror`, the link and the packaging checks.
+
+## CI iteration 2 (run 45141112632, commit 995831c)
+
+- Iteration 1 fixed the vcpkg step. All 27 packages installed, the core compiled, and all four
+  plugin sources (including `opengl-loader-linux.cpp`) compiled under GCC 13 with `-Werror`. This
+  is the first compile proof of the Linux loader.
+- The link failed on `NSEEL_HOSTSTUB_EnterMutex`/`LeaveMutex`: a cyclic dependency between the core
+  and the ns-eel2 archives. The fix is a CMake `LINK_GROUP:RESCAN` in `plugin/CMakeLists.txt`;
+  details are in `output-P4-004.md` *CI iteration 2*. The workflow did not change in this iteration.
+- **Linux libobs (C-009), from the job's *Record libobs version* step:** `obs-studio
+  32.2.0-0obsproject1~noble` from the PPA, libobs API version `32.2.0`, linked as
+  `/usr/lib/x86_64-linux-gnu/libobs.so.30`. `obs_module_ver` returns the API version the plugin was
+  built against, so **the Linux `.deb` needs OBS 32.2.0 or newer**, not the OBS 31 floor that macOS
+  has (D6). This feeds P4-007 (README) and `docs/concerns.md`.
+- Next unverified steps: the link itself, then the export, `TEXTREL`, `ldd`, `dlopen`, `.deb` and
+  packaged-export checks.

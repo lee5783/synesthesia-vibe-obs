@@ -16,3 +16,6 @@
 2026-11-23T08:42:38Z  orchestrator  pushed f191650, opened draft PR #3 (base feature/plugin-phase-2-macos). CI run 45139712419: macOS success; Linux failed at vcpkg pthread-stubs (autotools missing, C-014). Sent back to developer
 2026-11-23T08:42:45Z  developer  CI iteration 1: P4-005 Linux vcpkg pthread-stubs needs autotools; fixing forward
 2026-11-23T08:44:24Z  developer  CI iteration 1 fix done: autotools/X-chain apt packages + per-run vcpkg cache keys; actionlint clean; ready to push
+2026-11-23T08:53:44Z  orchestrator  CI run 45141112632 (995831c): macOS success; Linux core+plugin compile OK under GCC 13, link fails (NSEEL_HOSTSTUB_* undefined from libprojectM_ns-eel2.a, archive order). Sent back to developer
+2026-11-23T08:54:04Z  developer  CI iteration 2: Linux link NSEEL_HOSTSTUB_* undefined; investigating
+2026-11-23T08:56:10Z  developer  CI iteration 2 fix done: LINK_GROUP RESCAN for core/ns-eel2/eval cycle; macOS rebuild ok; ready to push

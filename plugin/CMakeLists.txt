@@ -161,10 +161,17 @@ if(OS_MACOS)
   )
 else()
   find_package(Threads REQUIRED)
-  target_link_libraries(
-    SynesthesiaVibe::Core
-    INTERFACE ${SYNESTHESIA_VIBE_CORE_DEPENDENCY_LIBRARIES} Threads::Threads ${CMAKE_DL_LIBS}
+  add_library(SynesthesiaVibe::NsEel2 STATIC IMPORTED)
+  set_target_properties(
+    SynesthesiaVibe::NsEel2
+    PROPERTIES IMPORTED_LOCATION "${SYNESTHESIA_VIBE_CORE_INSTALL_DIR}/lib/libprojectM_ns-eel2.a"
   )
+  add_library(SynesthesiaVibe::ProjectMEval STATIC IMPORTED)
+  set_target_properties(
+    SynesthesiaVibe::ProjectMEval
+    PROPERTIES IMPORTED_LOCATION "${SYNESTHESIA_VIBE_CORE_INSTALL_DIR}/lib/libprojectM_eval.a"
+  )
+  target_link_libraries(SynesthesiaVibe::Core INTERFACE Threads::Threads ${CMAKE_DL_LIBS})
 endif()
 
 add_dependencies(${CMAKE_PROJECT_NAME} synesthesia-vibe-core)
@@ -192,7 +199,13 @@ else()
   find_package(OpenGL REQUIRED COMPONENTS OpenGL EGL)
   target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/opengl-loader-linux.cpp)
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE GL_GLEXT_PROTOTYPES EGL_NO_X11)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OpenGL::OpenGL OpenGL::EGL)
+  target_link_libraries(
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE
+      "$<LINK_GROUP:RESCAN,SynesthesiaVibe::Core,SynesthesiaVibe::NsEel2,SynesthesiaVibe::ProjectMEval>"
+      OpenGL::OpenGL
+      OpenGL::EGL
+  )
   target_link_options(
     ${CMAKE_PROJECT_NAME}
     PRIVATE
