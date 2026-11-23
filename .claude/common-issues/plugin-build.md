@@ -2,7 +2,7 @@
 
 > Part of the known-issues corpus — see [`../COMMON-ISSUES.md`](../COMMON-ISSUES.md) for the
 > index. **Analysis date:** 2026-11-23 (obs-plugintemplate `3e7d7ac3`, core `v0.7.0`, Xcode 27.2,
-> macOS 26 SDK).
+> macOS 26 SDK; Linux entries: Ubuntu 24.04, GCC 13, GitHub Actions `ubuntu-24.04`).
 
 ## First configure fails with `set_target_properties called with incorrect number of arguments`
 
@@ -21,8 +21,10 @@
   with `0` before the template runs, when the file is missing and no `PLUGIN_BUILD_NUMBER` was
   passed. The vendored template file stays verbatim. If you see this error, check that the guard
   is still at the top of `plugin/CMakeLists.txt`.
-- **Known trade-off:** the seed also bypasses the template's `GITHUB_RUN_ID` build number on CI.
-  Revisit when CI exists (Phase 4, `docs/concerns.md`).
+- **CI:** the seed is skipped when `CI` is truthy (same test as the template's `if("$ENV{CI}")`),
+  so CI builds take the template's `GITHUB_RUN_ID` branch, which never writes an empty value. The
+  macOS CI job asserts `CFBundleVersion` equals the run id. Do not cache `plugin/cmake/` in CI: a
+  restored `.CMakeBuildNumber` would be incremented instead.
 - **How to verify this is still current:** `rm -rf plugin/build_macos_arm64
   plugin/cmake/.CMakeBuildNumber`, then `cmake --preset macos-arm64` must pass on the first try. If
   a newer template fixes `buildnumber.cmake`, the guard can go.
@@ -39,22 +41,27 @@
 - **How to verify this is still current:** after a core bump, run both commands; if the new tag is
   annotated, `git submodule status` shows it directly.
 
-## Configure stops with "builds only on macOS, with the Xcode generator, for arm64 alone"
+## Configure stops with "builds only on macOS, with the Xcode generator, for arm64 alone, or on Linux, with the Ninja generator, for x86_64"
 
 - **Symptom:** `cmake` exits 1 at once with:
   ```
-  SynesthesiaVibe for OBS builds only on macOS, with the Xcode generator, for arm64 alone.
-  Detected host '…', generator '…', CMAKE_OSX_ARCHITECTURES '…'. Configure with
-  'cmake --preset macos-arm64' and build with 'cmake --build --preset macos-arm64'.
+  SynesthesiaVibe for OBS builds only on macOS, with the Xcode generator, for arm64 alone, or on
+  Linux, with the Ninja generator, for x86_64. Detected host '…' (…), generator '…',
+  CMAKE_OSX_ARCHITECTURES '…'. On macOS configure with 'cmake --preset macos-arm64' and build
+  with 'cmake --build --preset macos-arm64'. On Linux configure with 'cmake --preset
+  ubuntu-x86_64' and build with 'cmake --build --preset ubuntu-x86_64'.
   ```
-- **Root cause:** the guard at the top of `plugin/CMakeLists.txt`. It refuses `-G Ninja` (which
-  would silently drop the export list), universal or `x86_64` builds, no architecture at all, and
-  the template's `macos`, `macos-ci`, `windows-*` and `ubuntu-*` presets. A
-  `CMAKE_OSX_ARCHITECTURES` set only as an **environment variable** is refused too: CMake applies
-  it at `project()`, after the guard.
-- **Fix / workaround:** `cd plugin && cmake --preset macos-arm64`. If you need a one-off
-  configure, pass `-G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64`. A refused preset configure leaves a
-  stub `plugin/build_macos/` (CMake cache only, git-ignored); delete it.
+- **Root cause:** the guard at the top of `plugin/CMakeLists.txt` allows exactly two combinations.
+  - On macOS it refuses `-G Ninja` (which would silently drop the export list), universal or
+    `x86_64` builds, no architecture at all, and the template's `macos`, `macos-ci` and
+    `windows-*` presets. A `CMAKE_OSX_ARCHITECTURES` set only as an **environment variable** is
+    refused too: CMake applies it at `project()`, after the guard.
+  - On Linux it refuses every generator but exactly `Ninja` (so Ninja Multi-Config is refused
+    too) and any host processor but `x86_64`.
+- **Fix / workaround:** on macOS, `cd plugin && cmake --preset macos-arm64`; for a one-off
+  configure pass `-G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64`. On Linux, `cmake --preset
+  ubuntu-x86_64` (or `-G Ninja`). A refused preset configure leaves a stub `plugin/build_macos/`
+  (CMake cache only, git-ignored); delete it.
 - **How to verify this is still current:** `cmake --preset macos` must fail with the message, and
   `.CMakeBuildNumber` must be unchanged afterwards (the guard runs before the seed and the
   template bootstrap).
@@ -101,3 +108,49 @@
   CI machine would not produce them.
 - **How to verify this is still current:** `xattr -l` on a freshly built bundle; if no
   `com.apple.provenance` appears, the listing has no `._` entries either.
+
+## Linux link fails with `undefined reference to 'NSEEL_HOSTSTUB_EnterMutex'`
+
+- **Symptom:** on Linux the core and all plugin sources compile, then the link of
+  `synesthesia-vibe-obs.so` fails inside `libprojectM_ns-eel2.a(ns-eel.c.o)` with undefined
+  `NSEEL_HOSTSTUB_EnterMutex` / `NSEEL_HOSTSTUB_LeaveMutex`. macOS links fine.
+- **Root cause:** GNU ld archive order with a cycle between static archives.
+  - The stubs are defined in the core (`external/synesthesia-vibe/src/platform/nseel_hoststub.cpp`,
+    inside `libSynesthesiaVibeCore.a`), but only ns-eel2 uses them.
+  - ld scans a plain archive list once. The core comes first, nothing needs the stubs yet, so
+    their object is skipped, and ld never rescans.
+  - On Apple the core merges ns-eel2 and eval into its own archive, and ld64 resolves within it.
+- **Fix / workaround:** already handled. `plugin/CMakeLists.txt` links
+  `$<LINK_GROUP:RESCAN,SynesthesiaVibe::Core,SynesthesiaVibe::NsEel2,SynesthesiaVibe::ProjectMEval>`
+  (`--start-group … --end-group`). Keep the three in one group, and don't "fix" a new undefined
+  symbol by reordering; add the archive to the group. Rationale: `docs/architecture.md`, *Core
+  link on Linux*.
+- **How to verify this is still current:** the CI *Build / Linux x86_64* link step passes with
+  `-Wl,--no-undefined`. After a core bump, check whether the core started merging the archives on
+  Linux too; then the group is harmless but unnecessary.
+
+## Linux CI fails "refusing to build against the distro OBS", or `obs-config.h` is missing
+
+- **Symptom:** the Linux job fails in *Install build dependencies* with `obs-studio candidate '…'
+  is not from ppa:obsproject/obs-studio; refusing to build against the distro OBS`, or with
+  `apt-get update failed 5 times` / `apt-get install failed 3 times`. In *Record libobs version*
+  it can fail with `installed … is not from ppa:obsproject/obs-studio` or `no installed package
+  provides obs-config.h`. Before the guard existed, the step died with
+  `awk: fatal: cannot open file '/usr/include/obs/obs-config.h'`.
+- **Root cause:** Launchpad's PPA CDN returns `503 Service Unavailable` on and off, for the index
+  (`InRelease`) and for package files.
+  - apt only **warns** when an index fails ("Some index files failed to download. They have been
+    ignored").
+  - `apt-get install obs-studio` then quietly takes Ubuntu's own `obs-studio` 30.0.2 from
+    noble/universe.
+  - That package has no libobs headers or CMake config (Ubuntu ships them in `libobs-dev`), and it
+    would set a different Linux OBS floor anyway.
+- **Fix / workaround:**
+  - Re-run the job; the guard turned a silent wrong build into a clear failure.
+  - The step already retries: `Acquire::Retries "5"`, `apt-get update --error-on=any` up to 5
+    times, install up to 3 times.
+  - Do **not** add a fallback to Ubuntu's `libobs-dev`: it would change the Linux OBS floor
+    without anyone noticing (C-009).
+  - Locally, `apt-cache policy obs-studio` must show an `obsproject` candidate before you build.
+- **How to verify this is still current:** the job's log shows `apt-cache policy obs-studio` and
+  the `obs-studio package:` line; a healthy run has `…obsproject…` in both.

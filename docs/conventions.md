@@ -10,7 +10,9 @@ unless asked) apply everywhere.
 
 **Files:**
 - kebab-case for every authored file: `obs-page.js`, `fetch-dist.sh`, `visualizer-source.cpp`,
-  `exported-symbols.txt`.
+  `exported-symbols.txt`, `build-plugin.yaml`. Workflows use the `.yaml` extension.
+- Per-OS variants of one module end in the OS: `opengl-loader-macos.cpp`, `opengl-loader-linux.cpp`,
+  behind one shared `opengl-loader.hpp`.
 
 **Functions:**
 - JavaScript: camelCase verbs (`readSettings`, `resolvePresets`, `createPlaylist`, `startAudio`).
@@ -44,7 +46,10 @@ unless asked) apply everywhere.
 - C++: tabs (template style), opening brace of a function on its own line, braces omitted on
   single-statement `if`. `nullptr`, `static_cast`, `std::array`, `std::lock_guard`.
 - Bash: 4-space indent, `set -euo pipefail`, quote every expansion.
-- CMake: 2-space indent, multi-line argument lists as in `plugin/CMakeLists.txt`.
+- CMake: 2-space indent, multi-line argument lists as in `plugin/CMakeLists.txt`. OS-specific
+  settings sit in `if(OS_MACOS) … else()` blocks at the point in the file where they apply.
+- GitHub Actions YAML: 2-space indent, `shell: bash` and `working-directory: plugin` as job
+  defaults, a blank line between steps, `name:` on every step except bare `uses:` checkouts.
 
 **Linting:**
 - None. Compiler warnings: the plugin's own sources build with no warnings; the core emits about
@@ -52,15 +57,18 @@ unless asked) apply everywhere.
 
 ## Import Organization
 
-**C++ order** (`plugin/src/visualizer-source.cpp`):
-1. The file's own header (`"visualizer-source.hpp"`), then other project headers in quotes
-   (`"audio-ring.hpp"`).
+**C++ order** (`plugin/src/visualizer-source.cpp`, `plugin/src/opengl-loader-linux.cpp`):
+1. The file's own header (`"visualizer-source.hpp"`, `"opengl-loader.hpp"`), then other project
+   headers in quotes (`"audio-ring.hpp"`, `"opengl-loader.hpp"`).
 2. OBS and core headers in angle brackets, alphabetical (`<media-io/audio-resampler.h>`,
-   `<obs-module.h>`, `<plugin-support.h>`, `<synesthesia-vibe/synesthesia-vibe.h>`, `<util/…>`).
-3. System headers (`<OpenGL/gl3.h>`, `<dlfcn.h>`).
+   `<obs-module.h>`, `<obs-nix-platform.h>`, `<plugin-support.h>`,
+   `<synesthesia-vibe/synesthesia-vibe.h>`, `<util/…>`).
+3. System headers (`<EGL/egl.h>`, `<dlfcn.h>` in the loader files).
 4. Standard library, alphabetical (`<algorithm>`, `<array>`, `<atomic>`, `<mutex>`, `<string>`).
 
-Blank line between groups.
+Blank line between groups. Platform GL headers (`<OpenGL/gl3.h>`, `<GL/gl.h>`, `<GL/glext.h>`)
+are included only through `"opengl-loader.hpp"`, never directly. `plugin-main.cpp` includes its
+OBS headers first, then the project headers.
 
 **JavaScript:**
 - No static imports. The dist is loaded with `import(DIST_ENTRY)` inside `stage(...)` so a missing
@@ -155,12 +163,18 @@ list items, unit suffixes, hints and hotkey descriptions. The text lives in
   //
   ```
 
-  `#` lines in CMake, shell, `.txt` and `.ini` files (OBS's locale parser treats `#` as a
-  comment); `<!-- -->` in HTML.
+  `#` lines in CMake, shell, YAML (`.github/workflows/*.yaml`), `.txt` and `.ini` files (OBS's
+  locale parser treats `#` as a comment); `<!-- -->` in HTML and XML (after the XML declaration).
+  `plugin/exported-symbols.map` uses one `/* … */` block with the header lines indented, laid out
+  like the XML header of `plugin/packaging/macos/distribution.in`; GNU ld's version-script parser
+  accepts C-style comments.
 - Vendored template files (`plugin/cmake/**`, `plugin/src/plugin-support.*`) get no header and keep
   their own comments.
 - Facts that would otherwise be a comment (why a guard exists, a maintenance trap) go into
   `docs/` or `.claude/common-issues/`.
+- Workflows follow the same rule. A `uses:` line names a full commit SHA with **no trailing
+  `# vX.Y.Z` comment** (C-019); the SHA-to-version map is in `docs/integrations.md`, *Pinned
+  actions*. `## …` lines inside a `run:` heredoc are Markdown text, not YAML comments.
 
 **JSDoc/TSDoc:**
 - Not used.
@@ -180,14 +194,37 @@ C++ callbacks cast `void *data` to `visualizer_source *` on the first line.
 - Page: none; `obs-page.js` runs `main()` on load.
 - Plugin: one registration function per source (`visualizer_source_register`, declared in
   `visualizer-source.hpp`); everything else lives in an anonymous namespace.
-- Binary exports: only the names in `plugin/exported-symbols.txt`. It must list exactly the
-  `obs_module_*` entry points the plugin defines. Listing an undefined one fails the link; a
-  wildcard re-exports libobs imports; forgetting a new optional one (`obs_module_post_load`,
-  `obs_module_name`, `obs_module_description`, `obs_module_author`) hides it with no warning.
+- Binary exports: only the `obs_module_*` names in **two files kept in sync**:
+  `plugin/exported-symbols.txt` (macOS, Xcode `EXPORTED_SYMBOLS_FILE`, names with a leading `_`)
+  and `plugin/exported-symbols.map` (Linux, GNU ld version script, names without `_`, under
+  `global:` with `local: *;`). Both must list exactly the entry points the plugin defines, in the
+  same order. Listing an undefined one fails the link; a wildcard re-exports libobs imports;
+  forgetting a new optional one (`obs_module_post_load`, `obs_module_name`,
+  `obs_module_description`, `obs_module_author`) hides it with no warning on that OS. CI diffs
+  each built binary against its file and fails on a mismatch.
 
 **GL calls into the core:**
 - Every `sv_*` call that touches GL goes through `with_core_gl_state([&] { … })`
   (`docs/architecture.md`).
+
+**Platform code:**
+- No `#if defined(__APPLE__)` in shared sources. A platform difference becomes a function
+  declared in a shared header and defined once per OS in `<name>-macos.cpp` / `<name>-linux.cpp`,
+  selected in `plugin/CMakeLists.txt` (`opengl_get_proc`, `opengl_log_platform`). A function with
+  nothing to do on one OS is defined empty there, so callers need no `#if`.
+
+## Workflows (`.github/workflows/`)
+
+- Every failing check prints `::error::<what and why>` and exits 1; group long output with
+  `::group::` / `::endgroup::`.
+- Values from the event or inputs (`github.ref_name`, `inputs.config`, `vars.*`) reach a script
+  only through `env:`, never as `${{ }}` inside `run:`.
+- Top-level `permissions: contents: read`; widen per job only where needed. Checkouts set
+  `persist-credentials: false`. No `secrets.*` until signing needs them.
+- Retries are bounded loops with growing waits and a final `::error::`, as in *Install build
+  dependencies*.
+- A step's script must pass `actionlint` with shellcheck and stay bash 3.2-compatible on the
+  macOS job.
 
 **Barrel Files:**
 - Not used.

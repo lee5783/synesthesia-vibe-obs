@@ -4,8 +4,10 @@
 
 `plugin/` holds the Phase 2 macOS plugin: tasks 1–6 are built and reviewed, packaging is partly
 done (ad-hoc pkg and zip, no notarization), and three verification runs are deferred (see
-*Deferred checks*). Gotchas with a quick workaround are in `.claude/COMMON-ISSUES.md`. Phases,
-risks and the filed-or-not state of upstream asks #1–#3 and #5 are in `PLAN.md`.
+*Deferred checks*). Phase 4 added CI, a draft-prerelease release pipeline and an experimental
+Linux x86_64 build that has never run in OBS. Gotchas with a quick workaround are in
+`.claude/COMMON-ISSUES.md`. Phases, risks and the filed-or-not state of upstream asks #1–#3 and
+#5 are in `PLAN.md`; #4, #6 and #7 are drafted below.
 
 ## Fixed in Phase 2
 
@@ -26,18 +28,43 @@ re-check is part of the deferred P2-011 run.
   `sv_load_preset` in `video_render`): replaced by audio capture, size and render-scale settings,
   the preset folder, and prepare-on-worker / commit-in-render.
 
+## Fixed in Phase 4
+
+- **Build-number seed overrode CI numbers.** The seed in `plugin/CMakeLists.txt` now runs only
+  when `CI` is not set, so CI builds are numbered with `GITHUB_RUN_ID`. The macOS CI job asserts
+  `CFBundleVersion` equals the run id. The local first-configure fix still applies.
+- **No CI, no automated packaging check.** `.github/workflows/` builds, packages and inspects both
+  OSes on every PR (`docs/testing.md`, *CI checks*).
+- **Linux export control** (the `PLAN.md` *Duplicate glad symbols on Linux* risk): a version
+  script plus `--exclude-libs,ALL`; CI checks that only the 7 `obs_module_*` names are exported.
+
 ## Tech Debt
 
-**Plugin builds only on macOS / arm64 / Xcode:**
-- Issue: the triplet (`arm64-osx`), `CMAKE_OSX_ARCHITECTURES=arm64`, the Apple framework list,
-  `XCODE_ATTRIBUTE_EXPORTED_SYMBOLS_FILE` and the OpenGL framework path are unconditional. The
-  configure guard makes this explicit and refuses everything else, including the template's
-  `windows-*` / `ubuntu-*` presets.
+**Plugin builds only on macOS arm64 (Xcode) and Linux x86_64 (Ninja):**
+- Issue: the configure guard allows exactly those two combinations and refuses everything else,
+  including the template's `macos` (universal) and `windows-*` presets. The Apple settings sit
+  under `if(OS_MACOS)`, and `else()` means Linux only because the guard forbids everything else.
 - Files: `plugin/CMakeLists.txt`, `plugin/CMakePresets.json`, `plugin/packaging/macos/distribution.in`.
-- Fix approach: universal needs a second `x64-osx` core build plus `lipo`, and reverting
-  `hostArchitectures` in `plugin/packaging/macos/distribution.in` to `arm64,x86_64` (Phase 4,
-  C-016). Windows (Phase 3) and Linux (Phase 4) relax the guard per OS. Linux also needs
-  `-Wl,--version-script` with the same 7 names, or `-Wl,--exclude-libs,ALL`.
+- Fix approach:
+  - **Universal macOS binary (C-025, a follow-up outside Phase 4):** a second `x64-osx` core build
+    plus `lipo`, the guard relaxed, and `hostArchitectures` in
+    `plugin/packaging/macos/distribution.in` reverted to `arm64,x86_64`. The CI inspection's
+    arm64-only checks change with it.
+  - **Windows (Phase 3):** revisit the guard and every `if(OS_MACOS) … else()` block.
+
+**Small Linux and build follow-ups (Gate 2 review m4–m7):**
+- **m4, duplicated archive paths:** `libprojectM_ns-eel2.a` and `libprojectM_eval.a` are spelled
+  twice in `plugin/CMakeLists.txt`, once in `SYNESTHESIA_VIBE_CORE_DEPENDENCY_LIBRARIES`
+  (`BUILD_BYPRODUCTS`) and once in the imported targets' `IMPORTED_LOCATION`. One variable per
+  archive would keep them in step.
+- **m5, platform log in the GL header:** `opengl_log_platform` (the windowing-platform log) is
+  declared in `plugin/src/opengl-loader.hpp`, so `plugin-main.cpp` includes the platform GL
+  headers only to call it. It is not a GL-loading concern. Revisit only if the header grows.
+- **m6, unreachable `libGL.so.1` fallback** (`plugin/src/opengl-loader-linux.cpp`): the `.so` has
+  `NEEDED libOpenGL.so.0`, so the first `dlopen` always succeeds once the plugin is loaded.
+  Harmless; note it if the C-011 loader choice is revisited after P4-008.
+- **m7, the Linux guard checks only the host:** it reads the host processor, not the target, so
+  an x86_64 host cross-compiling with a toolchain file passes. Edge case, out of scope.
 
 **`visualizer-source.cpp` holds three subsystems:**
 - Issue: about 1,290 lines with presets / auto-cycle, audio attachment and GL / render in one file.
@@ -56,12 +83,9 @@ re-check is part of the deferred P2-011 run.
 - Fix approach: after the first real core bump, check that the plugin binary's timestamp moves. If
   not, add a dependency on the `.a`.
 
-**Build-number seed overrides CI numbers:**
-- Issue: `plugin/CMakeLists.txt` writes `0` into `cmake/.CMakeBuildNumber` when it is missing, to
-  avoid the template's empty-number first-configure failure. That bypasses the template's
-  `GITHUB_RUN_ID` branch on CI.
-- Files: `plugin/CMakeLists.txt`, `plugin/cmake/common/buildnumber.cmake` (vendored).
-- Fix approach: revisit in Phase 4 when CI exists (e.g. skip the seed when `CI` is set).
+**Build-number seed:** resolved in Phase 4 (*Fixed in Phase 4*). One residual trap: a
+`.CMakeBuildNumber` restored into a CI workspace would make the template increment it instead of
+using the run id. No cache includes `plugin/cmake/`; keep it that way.
 
 **Template packaging defects shipped as-is:**
 - Quoted receipt id: the vendored `create-package.cmake.in` passes `--identifier
@@ -208,6 +232,18 @@ re-check is part of the deferred P2-011 run.
   `installer -target CurrentUserHomeDirectory` needs no admin rights. Notarization is documented
   and waits on Developer ID credentials (C-002).
 
+**CI and release pipeline:**
+- Risk: a pushed tag produces release binaries, and a fork PR runs repo workflows.
+- Current mitigation:
+  - Only the release job has `contents: write`. No workflow reads `secrets.*`.
+  - Fork PRs run under `pull_request`, with a read-only token, `persist-credentials: false`, and
+    caches scoped to the PR, which a tag run cannot read.
+  - Event values reach scripts only through `env:`. The buildspec `name` and `version` are
+    validated before they reach `GITHUB_ENV`.
+  - Every release is a draft that a person publishes; final tags need `RELEASE_FINAL_ALLOWED`.
+- Keep it that way: switching to `pull_request_target` or adding secrets to the shared build
+  workflow would undo most of this (`docs/integrations.md`, *CI/CD & Deployment*).
+
 **User input in the plugin:**
 - The folder path only selects files through `os_opendir`; it reaches only `sv_prepare_preset` and
   the log. Preset parsing is the core's.
@@ -265,6 +301,17 @@ re-check is part of the deferred P2-011 run.
   for large sizes (`plugin/README.md`).
 - Several instances each render the core and their own texrender; cost adds up (C-025, unmeasured).
 
+**Most of the core builds without optimisation (C-029):**
+- The core's top-level `CMakeLists.txt` `FORCE`-sets `CMAKE_CXX_FLAGS_RELEASE` and
+  `CMAKE_C_FLAGS_RELEASE` (and `CMAKE_CXX_FLAGS` / `CMAKE_C_FLAGS`) to `""`. Its own targets add
+  only `-std=c++17 -ffp-contract=off`.
+- In the macOS inner build (`plugin/build_macos_arm64/synesthesia-vibe-core/build/build.ninja`),
+  **65 of 75 compile units have no `-O` flag**; only 10 get `-O3`. So the core is mostly `-O0` in
+  the plugin's Release builds, on Linux too.
+- This may matter for P2-012 (1080p60), where a heavy commit already takes about 18 ms.
+- No plugin-side workaround is applied. Injecting `-O2` through `CMAKE_PROJECT_INCLUDE` would be
+  possible, but it is the user's call. The fix belongs upstream: ask #7 below.
+
 **Several Browser Sources:**
 - Each one has its own WebGL 2 renderer and audio capture. Reuse one source across scenes.
 
@@ -298,11 +345,13 @@ re-check is part of the deferred P2-011 run.
   disabled-timer default). A scripted race test (pick at the moment the timer fires) would need a
   debug hook.
 
-**`plugin/exported-symbols.txt`:**
+**`plugin/exported-symbols.txt` and `plugin/exported-symbols.map`:**
 - Why fragile: a new optional `obs_module_*` entry point that is not listed is hidden with no
-  warning and OBS never calls it; listing one that is not defined fails the link.
-- Safe modification: update the list in the same change that adds the entry point; check with
-  `nm -gU`.
+  warning and OBS never calls it; listing one that is not defined fails the link. There are two
+  lists (macOS with a leading `_`, Linux without), and they must stay in step.
+- Safe modification: update both in the same change that adds the entry point. CI diffs each
+  built binary against its list and also requires exactly 7 names, so a new entry point also
+  means updating the count in `build-plugin.yaml`.
 
 **Renderer check:**
 - Files: `plugin/src/plugin-main.cpp`.
@@ -332,6 +381,37 @@ re-check is part of the deferred P2-011 run.
 - About 105 deprecation warnings on the macOS 26 SDK; never build the core with `-Werror`. The
   core's CMake is not subdirectory-safe (upstream ask #1 in `PLAN.md`).
 
+**The core on Linux:**
+- The core's README says Windows and Linux are not release targets. It has no Linux preset or
+  overlay triplet.
+- At `v0.7.0` it builds under GCC 13 on Ubuntu 24.04 with no source change, using the plugin's
+  ExternalProject settings (`docs/integrations.md`, *Linux build and package*).
+- Its manifest still builds `glfw3` and `gtest`, which pull in X11 dev packages and autotools.
+  Only the core's desktop tools use them (upstream ask #1).
+- A future core bump may break the Linux build first. The stop rule is unchanged: never edit the
+  core here; draft an upstream ask instead.
+
+**Linux OBS floor and the PPA (C-009):**
+- The Linux plugin builds against the PPA's current libobs, **32.2.0** at Phase 4, not the
+  buildspec's 31.1.1. So Linux needs OBS 32.2.0+, against OBS 31+ on macOS (D6, proposed).
+- The `.deb`'s `Depends: obs-studio` is **unversioned**, so apt does not enforce that floor;
+  `plugin/README.md` tells users to check their OBS version.
+- The PPA keeps only its current version, so a later rebuild can raise the floor silently. CI
+  records it in each run summary (*Linux libobs*). The README and the notes for any release that
+  ships a `.deb` must name the floor from the run that built it.
+- Fix approach (not done): a versioned dependency, for example
+  `CPACK_DEBIAN_PACKAGE_DEPENDS "obs-studio (>= <floor>)"` from the recorded version.
+- Launchpad's PPA CDN returns 503s on and off. CI retries and refuses the distro OBS, but a long
+  outage still fails the Linux job (`.claude/common-issues/plugin-build.md`).
+
+**GitHub runner images and pins:**
+- `macos-26` drops older Xcode patch versions over time, so `/Applications/Xcode_26.6.app` in
+  `build-plugin.yaml` will stop existing; bump it when the job fails at `xcode-select`.
+- Actions are pinned by SHA with no Dependabot, so updates are manual (`docs/integrations.md`,
+  *Pinned actions*).
+- `CORE_VERSION` in `release.yaml` must follow every submodule bump, or the release fails at
+  *Validate core version*.
+
 ## Missing Critical Features
 
 **Phase 1 sign-off:**
@@ -340,14 +420,28 @@ re-check is part of the deferred P2-011 run.
 
 **Notarization (Phase 2 task 7):**
 - The release is ad-hoc signed and unnotarized. The commands are in `docs/integrations.md`; they
-  run once the user supplies Developer ID credentials out of band.
+  run once the user supplies Developer ID credentials out of band. A CI notarizing job would read
+  them from GitHub encrypted secrets (placeholder names in `docs/integrations.md`, C-018).
+
+**Linux in OBS (P4-008):**
+- The Linux `.so` and `.deb` are built and checked in CI (exports, PIC, `ldd`, `dlopen`, package
+  contents) but have **never run in OBS**, on X11 or Wayland. The user owns this test on Ubuntu
+  24.04.
+- Until it passes, the `.deb` is only a workflow artifact, never a release asset, and
+  `plugin/README.md` calls Linux experimental and untested.
+- Not covered by the design either:
+  - **Flatpak OBS** (Flathub) is unsupported: it cannot see a `/usr` install and would need a
+    Flatpak extension.
+  - Other distributions, other Ubuntu versions and aarch64 are unsupported (C-028).
+  - If the test shows a GLX context, revisit the EGL-first loader (C-011).
 
 **Plugin UI:**
 - No "now playing" or failed-preset status line; no in-app notice on renderer refusal.
 
 **Hosting, universal binary, Windows:**
-- GitHub Pages (D5) is open and skipped: presets are approved for local serving only. Universal
-  binary is Phase 4 (C-016). Windows is Phase 3.
+- GitHub Pages (D5) is open and skipped: presets are approved for local serving only. The
+  universal binary stayed out of Phase 4 and is a follow-up (C-025, *Tech Debt* above). Windows is
+  Phase 3, and "each OS" in CI excludes it until then.
 
 ## Deferred Checks
 
@@ -381,7 +475,8 @@ How to run each: `docs/testing.md`, *Planned, not yet run*.
 ## Upstream Ask Drafts (core repo)
 
 Drafted, not filed. The user owns the core repo and files them; each becomes
-`synesthesia-vibe#<n>` once filed. Asks #1–#3 and #5 are in `PLAN.md`, *Upstream asks*.
+`synesthesia-vibe#<n>` once filed. Asks #1–#3 and #5 are in `PLAN.md`, *Upstream asks*; #4, #6
+and #7 are here.
 
 **#4 — Per-context PCM buffer and a sample-rate parameter:**
 "`sv_push_pcm_float(ctx, …)` stores samples in the process-global `pcmLeftLpb` / `pcmRightLpb`
@@ -400,6 +495,20 @@ installs none. Hosts must push silence themselves to make levels fall to 0.
 - or let the core expire PCM older than a set age on its own render clock (an `sv_config` field
   for the age, off by default)."
 
+**#7 — Optimisation flags per target instead of cleared global flags (C-029):**
+"The top-level `CMakeLists.txt` `FORCE`-sets `CMAKE_CXX_FLAGS`, `CMAKE_CXX_FLAGS_RELEASE`,
+`CMAKE_C_FLAGS` and `CMAKE_C_FLAGS_RELEASE` to `""`, and the library's own targets add only
+`-std=c++17 -ffp-contract=off`. So a Release build compiles most of `SynesthesiaVibeCore` with no
+optimisation: in one macOS arm64 build, 65 of 75 compile units had no `-O` flag. A host that
+builds the library from source can't fix this without patching it.
+- Give the library targets their optimisation level explicitly (for example
+  `target_compile_options(… PRIVATE $<$<CONFIG:Release>:-O2>)` next to `-ffp-contract=off`),
+  instead of relying on the cleared cache flags.
+- Or stop `FORCE`-clearing `CMAKE_<LANG>_FLAGS_<CONFIG>`, so `CMAKE_BUILD_TYPE=Release` gets the
+  toolchain's defaults. This overlaps ask #1, which asks not to `FORCE` the global flags.
+- Keep whatever the cleared flags protect (for example float reproducibility) as explicit
+  per-target options."
+
 ## Test Coverage Gaps
 
 **`fetch-dist.sh` off macOS:**
@@ -414,6 +523,10 @@ installs none. Hosts must push silence themselves to make levels fall to 0.
 
 **Plugin:**
 - Everything in *Deferred Checks*. Priority: High for P2-012 and the P2-011 GL-state check.
+- The Linux build in OBS on X11 and Wayland (P4-008). Priority: High before Linux ships.
+- The macOS loader split (Phase 4) was checked by build plus an export/import diff only; the OBS
+  smoke load (TC-M03) is deferred with P2-011. Priority: Medium.
+- The plain `ubuntu-x86_64` preset (CI uses `ubuntu-ci-x86_64`). Priority: Low.
 - Real microphone and desktop-audio sources (10 ms chunks; only a Media Source was tested), the
   real Metal renderer, scene collections under refusal, relink after a core bump, two instances'
   combined cost. Priority: Medium.

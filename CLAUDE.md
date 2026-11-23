@@ -140,6 +140,10 @@ Run from the repository root. Details, install steps and logs: `docs/integration
   `VCPKG_ROOT` pointing at a vcpkg checkout. Then
   `cd plugin && cmake --preset macos-arm64 && cmake --build --preset macos-arm64`. The first
   configure downloads and builds libobs (about 3 minutes).
+- Plugin (Linux, experimental, Ubuntu 24.04 x86_64; built in CI, untested in OBS): needs OBS from
+  `ppa:obsproject/obs-studio`, the apt packages in `docs/integrations.md` (*Linux build and
+  package*) and `VCPKG_ROOT`. Then `cd plugin && cmake --preset ubuntu-x86_64
+  -DCMAKE_INSTALL_PREFIX=/usr && cmake --build --preset ubuntu-x86_64`.
 
 ## Quick facts worth knowing up front
 

@@ -34,3 +34,7 @@
 2026-11-23T09:45:17Z  orchestrator  Gate 2: review Approve, no blockers. Sent REVIEW-FIX (m1 checksum line, m2 evidence CI results, m3 README vcpkg pin/guard wording, S1 buildspec validation) to developer; m4-m7 skipped as optional
 2026-11-23T09:45:36Z  developer  task START REVIEW-FIX (m1, m2, m3, S1 from review/output-review-findings.md)
 2026-11-23T09:47:18Z  developer  task END REVIEW-FIX (m1 m2 m3 S1 done; actionlint clean; ready to push)
+2026-11-23T09:48:28Z  document-writer  start P4-012 doc sync (Gate 3)
+2026-11-23T09:57:07Z  orchestrator  CI run 45150243042 (f57bf4e, review fixes): macOS + Linux success
+2026-11-23T10:00:34Z  orchestrator  Gate 3 docs pass accepted (docs/ 7 pages, common-issues, how-x-works release-pipeline + citation shifts, PLAN.md status/Phase 4/risk/ask #7 pointer, CLAUDE.md Setup Linux line); orchestrator hygiene scan clean. Gate 4 asked
+2026-11-23T10:06:57Z  orchestrator  Gate 4: user chose template + update PR #3 (stays draft); docs/README.md index refresh approved and done; output-pull-request.md written; committing, pushing, updating PR #3 body

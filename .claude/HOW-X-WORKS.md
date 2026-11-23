@@ -15,6 +15,7 @@ write-up** here so the next lookup is instant instead of re-traced through the c
 | Plugin audio path (source capture or whole mix → resampler → SPSC ring → `sv_push_pcm_float`, silence push) | [`how-x-works/plugin-audio-path.md`](how-x-works/plugin-audio-path.md) |
 | Plugin preset loading (setting / auto-cycle request / hotkey → worker `sv_prepare_preset` → ready slot → `sv_commit_preset` in render; cycle latch, pause) | [`how-x-works/plugin-preset-loading.md`](how-x-works/plugin-preset-loading.md) |
 | Browser Source startup (URL settings → dist import → playlist → cycling → audio) | [`how-x-works/browser-source-startup.md`](how-x-works/browser-source-startup.md) |
+| Release pipeline (`v*` tag → validate tag and core version → Release build on macOS and Linux → checksums, notes → draft (pre)release; Linux `.deb` not attached) | [`how-x-works/release-pipeline.md`](how-x-works/release-pipeline.md) |
 
 ## Adding/updating an entry
 

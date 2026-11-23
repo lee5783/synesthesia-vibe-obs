@@ -16,7 +16,9 @@
 - Not used.
 
 **Run Commands:**
-- Not applicable. Changes are verified by running the real thing and keeping evidence (below).
+- No test command. Changes are verified by running the real thing and keeping evidence (below).
+  The automated part is CI: every PR and every push to `master` runs workflow **CI**, whose build
+  and package checks fail the run on a regression (*CI checks* below).
 
 ## Test File Organization
 
@@ -32,6 +34,66 @@
 - Only `.md` and `.py` files under `develop/evidence/` are committed. Screenshots, logs and helper
   `.mjs` / `.js` scripts there are git-ignored (`.gitignore`), so the committed reports must quote
   the lines that matter.
+
+## CI checks (automated evidence)
+
+GitHub Actions runs these on every PR, every push to `master` and every `v*` tag
+(`.github/workflows/build-plugin.yaml`; layout in `docs/integrations.md`, *CI/CD & Deployment*).
+They are inline shell steps, not a test suite: nothing is committed as a probe program, and no
+OBS or Xvfb runs in CI (C-027). Each failure prints an `::error::` naming the problem and fails
+the job. A green run is the build-and-package evidence for a change; behaviour inside OBS still
+needs the runs below.
+
+**macOS arm64 job, *Inspect package*:**
+- The pkg's own Distribution (`pkgutil --expand`) has `hostArchitectures="arm64"`.
+- `lipo -info` shows a non-fat arm64 binary.
+- `nm -gU` lists exactly the 7 names in `plugin/exported-symbols.txt` (diff and count).
+- `CFBundleVersion` equals `GITHUB_RUN_ID` (the CI build number).
+- `codesign -dvv` shows `Signature=adhoc`, and `codesign --verify --deep --strict` passes.
+- The pkg payload and the zip hold no `.milk`, presets or textures. The zip holds nothing outside
+  the bundle and no `._*` entries.
+
+**Linux x86_64 job, *Record libobs version*, *Check plugin binary*, *Inspect package*:**
+- **OBS origin:**
+  - the installed `obs-studio` comes from the PPA (`obsproject` in its version);
+  - `obs-config.h` is found through `dpkg-query`;
+  - the libobs API version goes to the log and the run summary.
+- **Exports** (`nm -D --defined-only`):
+  - the `obs_module_*` names equal the 7 in `plugin/exported-symbols.map`;
+  - nothing else is defined except `_init`, `_fini`, `_edata`, `_end` and `__bss_start`;
+  - nothing matches `glad`, `^sv_`, `projectm`, `nseel` or `^_Z`.
+- **Link:** `readelf -d` has no `TEXTREL` (all objects are PIC), and `ldd` reports nothing `not
+  found`.
+- **`dlopen` probe:** inline `python3 -I` with ctypes and `RTLD_NOW | RTLD_LOCAL`. Every function
+  import must bind at load, and `obs_module_load`, `obs_module_unload`, `obs_module_ver` and
+  `obs_module_set_pointer` must resolve. It needs no display.
+- **`.deb` control** (`dpkg-deb -I`): `Maintainer` is non-empty, and `Depends` names the OBS
+  package.
+- **`.deb` contents** (`dpkg-deb -c`):
+  - `./usr/lib/x86_64-linux-gnu/obs-plugins/synesthesia-vibe-obs.so` and
+    `./usr/share/obs/obs-plugins/synesthesia-vibe-obs/locale/en-US.ini` are present;
+  - there are no presets or textures;
+  - the `.so` extracted from the `.deb` still exports the 7 names.
+
+**Both jobs:**
+- The plugin sources build with warnings as errors (Xcode 26.6, GCC 13).
+- *Set up environment* rejects a bad `config` input and a buildspec `name` or `version` of the
+  wrong shape.
+
+**Release workflow** (`.github/workflows/release.yaml`):
+- *Validate tag* runs before anything builds.
+- *Validate core version* checks that `CORE_VERSION` matches the submodule.
+- `sha256sum -c` checks `SHA256SUMS.txt` before upload.
+- The tag rules were checked locally against 16 tag/variable cases and once live with
+  `v0.1.0-beta.0` (Phase 4 session, `develop/evidence/P4-006-release-logic.md`).
+
+**Running a workflow step locally:**
+- `develop/evidence/P4-002-workflow-step.py` in the Phase 4 session extracts one step's `run:`
+  script from a workflow file, so it can be run with `bash -eo pipefail` against a local build.
+- `actionlint` with shellcheck is the static check for workflow edits (0 errors at Phase 4).
+
+**Not covered by CI:** anything inside OBS, the Linux plugin in a real OBS session (P4-008), the
+pkg install, notarization.
 
 ## How the Browser Source is verified
 
@@ -72,10 +134,11 @@ far), driven by scripts over obs-websocket, with the OBS log and screenshots as 
 Phase 2 session's per-task write-ups are under
 `.claude/working-sessions/20261123091415-plugin-phase-2-macos/develop/evidence/<task>/`.
 
-**Build checks** (every change):
+**Build checks** (every change; CI repeats the binary checks on both OSes):
 - `cmake --preset macos-arm64 && cmake --build --preset macos-arm64` succeeds in `plugin/` with
   no warning from `plugin/src` (the plugin builds with `-Werror`; the ~105 core warnings are
-  expected).
+  expected). A change to Linux-only code is first compiled by the CI Linux job; there is no local
+  Linux build here.
 - `lipo -info` → arm64; `codesign -dvv` → ad-hoc; `codesign --verify` on the installed copy.
 - `nm -gU <bundle>/Contents/MacOS/synesthesia-vibe-obs` lists exactly the 7 names in
   `plugin/exported-symbols.txt`.
@@ -204,6 +267,7 @@ Phase 2 session's per-task write-ups are under
 - Not used.
 
 **Integration Tests:**
+- CI build-and-package checks (*CI checks*) on every PR.
 - Manual / scripted runs in Chrome and OBS, as above. The helper `.mjs` scripts drive one phase
   per invocation (`setup`, the cases, `cleanup`) and are git-ignored; the committed `.md` reports
   quote the log lines and numbers that matter.
@@ -212,6 +276,10 @@ Phase 2 session's per-task write-ups are under
 - Real microphone and desktop-audio sources, Gatekeeper dialogs for the unnotarized pkg and zip,
   the real Metal renderer, and OBS UI paths not exercised by the websocket (Renderer setting,
   Hotkeys settings page). These need a person.
+- **Linux in OBS (P4-008):** the CI `.deb` on Ubuntu 24.04 with OBS from the PPA, once in an X11
+  session and once in a Wayland session. Check the `windowing platform:` log line, that the
+  source renders and reacts to audio, and that other sources still draw. The Linux package goes
+  onto releases only after this passes.
 
 **E2E Tests:**
 - Not used.

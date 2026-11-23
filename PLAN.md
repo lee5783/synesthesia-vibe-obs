@@ -5,8 +5,11 @@ Windows) before it is marked done. **Phase 2 (macOS) built and reviewed**: tasks
 task 7 (packaging) is partly done, with an ad-hoc signed `.plugin`, an unsigned `.pkg` and a zip,
 and notarization waits on Developer ID credentials. Phase 2 is **not done**: its *Done when*
 checks are deferred (the 1080p60 run, the integrated Done-when run, and the OBS check of the
-"(first preset)" dialog fix). D1 and D4 are locked; D5 (Pages) is open and skipped for now. Last
-updated 2026-11-23.
+"(first preset)" dialog fix). **Phase 4 (release and Linux) built and reviewed**: CI builds and
+checks macOS arm64 and Linux x86_64 on every PR, and a `v*` tag makes a draft prerelease with the
+macOS pkg, zip and checksums. Windows waits on Phase 3. Linux is experimental: built and checked
+in CI, not attached to releases until the user's Ubuntu X11/Wayland test. D1 and D4 are locked;
+D5 (Pages) is open and skipped for now. Last updated 2026-11-23.
 
 ## Goal
 
@@ -478,10 +481,21 @@ copy is acceptable for the first release.
 ## Phase 4 — Release and Linux (medium)
 
 1. CI builds the plugin for each OS on a `v*` tag and attaches the artifacts to a GitHub Release.
+   **Done, prerelease-only.** `.github/workflows/` builds and checks macOS arm64 and Linux x86_64
+   on every PR. A `v*` tag creates a **draft** release with the macOS pkg, zip and
+   `SHA256SUMS.txt`. Only `-beta.<N>` / `-rc.<N>` tags pass until the repository variable
+   `RELEASE_FINAL_ALLOWED` is set, and a person publishes each draft. Windows is blocked with
+   Phase 3. Details: `docs/integrations.md`, *CI/CD & Deployment*.
 2. Linux (optional): OBS uses OpenGL/EGL there, so the macOS path should mostly carry over.
    Ship it only after a real test on Ubuntu with an X11 and a Wayland session.
-3. Publish on the OBS forums resource page.
+   **Built and checked in CI; experimental.** A `.deb` for Ubuntu 24.04 x86_64 (OBS 32.2.0+ from
+   the PPA) is a CI workflow artifact only, not attached to releases. It waits on the user's
+   Ubuntu X11 and Wayland test (P4-008). Flatpak OBS is unsupported.
+3. Publish on the OBS forums resource page. **Dropped for this run:** posting is the user's
+   action, and it is premature while Phase 2 is open.
 4. Run `codebase-mapper` to generate `docs/` and fill the routing table in `CLAUDE.md`.
+   **Closed, already satisfied:** all eight `docs/` pages and the routing table exist, and the
+   Phase 4 doc sync brought them up to date.
 
 ## Risks
 
@@ -493,7 +507,7 @@ copy is acceptable for the first release.
 | Audio thread → render thread handoff | Crackle-free audio but a desynced or frozen visualizer, or a data race | Single-producer/single-consumer ring buffer; never call `sv_*` from the audio callback. Not exercised by the spike, which pushed a synthetic tone from `video_tick`; that also races `video_render` on the same `sv_context` (task 3 moves every `sv_*` call into `video_render`) |
 | OBS on Metal (macOS) or a non-GL renderer | The plugin can't render | Done in the spike: the renderer check at load refuses anything but OpenGL with a log warning and registers no source. Apple's GL-on-Metal driver passes. The real Metal renderer was not exercised, and there is no in-app notice yet |
 | Presets that write alpha 0 (swarm) | The visualizer shows transparent in screenshots, filters and nested scenes | Found by the spike. Draw with an opaque technique or force alpha to 1 (Phase 2) |
-| Duplicate glad symbols on Linux | Wrong GL entry points, crash at load | The plugin's link exports only its `obs_module_*` entry points: on macOS through `plugin/exported-symbols.txt` (done and loaded in OBS 33.0.3; it also stops cross-image weak-symbol coalescing), and on Linux, when Phase 4 gets there, through a version script or `--exclude-libs,ALL` |
+| Duplicate glad symbols on Linux | Wrong GL entry points, crash at load | Mitigated. The plugin's link exports only its `obs_module_*` entry points: on macOS through `plugin/exported-symbols.txt` (done and loaded in OBS 33.0.3; it also stops cross-image weak-symbol coalescing), and on Linux through the version script `plugin/exported-symbols.map` plus `-Wl,--exclude-libs,ALL` (Phase 4). CI checks every Linux build: only the 7 names are exported, with no glad, `sv_`, projectM or C++ symbols. Not yet loaded in OBS on Linux (P4-008) |
 | Slow preset compiles stall OBS | Dropped frames on a live stream | `sv_prepare_preset` off-thread, commit in `video_render` under the graphics context. The spike still loads with a synchronous `sv_load_preset` inside `video_render` |
 | GPL vs the MIT core and vendored code | Can't publish | D1 is settled (GPL-2.0-or-later); check the core's `NOTICE` for vendored licenses |
 | WebGL 2 / getUserMedia inside OBS's embedded Chromium | Phase 1 page is blank or silent | Test early on the oldest supported OBS; document the launch flag |
@@ -551,8 +565,8 @@ once filed. The draft text for each is inline below.
    - allow changing that folder after `sv_create` (for example `sv_set_texture_search_path`), so a
      host can follow the user's preset folder without re-creating the context;
    - keep the current behaviour when the host sets nothing."
-   Asks #4 and #6 (per-context PCM buffer, public reset of stale audio) are drafted in
-   `docs/concerns.md`.
+   Asks #4 and #6 (per-context PCM buffer, public reset of stale audio) and #7 (optimisation
+   flags per target; most of the core builds at `-O0`) are drafted in `docs/concerns.md`.
 
 ## Evidence and testing
 
