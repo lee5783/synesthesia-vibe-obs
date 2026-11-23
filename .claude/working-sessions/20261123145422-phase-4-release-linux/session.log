@@ -25,3 +25,6 @@
 2026-11-23T09:06:55Z  orchestrator  CI run 45143470392 (61107e0): macOS success; Linux apt-get update retry recovered, but PPA .deb download 503 during install. Sent back to developer
 2026-11-23T09:07:04Z  developer  CI iteration 4: PPA .deb download 503; adding apt Acquire::Retries and bounded install retry
 2026-11-23T09:07:35Z  developer  CI iteration 4 fix done: Acquire::Retries 5 + 3-attempt install loop; actionlint clean; ready to push
+2026-11-23T09:23:56Z  orchestrator  CI run 45144284376 (ec49eeb): macOS + Linux success; Linux checks ran (7 exports, NEEDED libobs.so.30/libOpenGL/libEGL, dlopen RTLD_NOW ok, .deb inspected, PPA OBS 32.2.0). Pushing throwaway tag v0.1.0-beta.0 to test release.yaml (Gate 1 C-001)
+2026-11-23T09:24:51Z  developer  task START P4-007 (plugin/README.md Download + Linux sections); checking run 5 vcpkg cache skip
+2026-11-23T09:27:25Z  developer  task END P4-007 (output-P4-007.md written; ready to push)

@@ -10,7 +10,8 @@ directly. You need no loopback device, no local server and no command-line flag.
 
 **Known limits**
 
-- Apple Silicon Macs only. Intel Macs, Windows and Linux are not supported yet.
+- Apple Silicon Macs only. Intel Macs and Windows are not supported yet. A Linux build exists but
+  is experimental and untested in OBS ([Linux](#linux-experimental-untested-in-obs)).
 - OBS must use its **OpenGL** renderer. On any other renderer the source does not appear (see
   [Troubleshooting](#troubleshooting)).
 - The release is not notarized by Apple yet, so macOS warns when you open the installer. See
@@ -24,18 +25,20 @@ directly. You need no loopback device, no local server and no command-line flag.
 ## Contents
 
 1. [What you need](#what-you-need)
-2. [Step 1: install the plugin](#step-1-install-the-plugin)
-3. [Step 2: check that OBS uses OpenGL](#step-2-check-that-obs-uses-opengl)
-4. [Step 3: add the source](#step-3-add-the-source)
-5. [Settings](#settings)
-6. [Hotkeys](#hotkeys)
-7. [Presets: where to get them and their terms](#presets-where-to-get-them-and-their-terms)
-8. [Hidden sources, several visualizers and performance](#hidden-sources-several-visualizers-and-performance)
-9. [Reading the OBS log](#reading-the-obs-log)
-10. [Troubleshooting](#troubleshooting)
-11. [Uninstall](#uninstall)
-12. [For developers](#for-developers)
-13. [Credits and licences](#credits-and-licences)
+2. [Download](#download)
+3. [Step 1: install the plugin](#step-1-install-the-plugin)
+4. [Step 2: check that OBS uses OpenGL](#step-2-check-that-obs-uses-opengl)
+5. [Step 3: add the source](#step-3-add-the-source)
+6. [Settings](#settings)
+7. [Hotkeys](#hotkeys)
+8. [Presets: where to get them and their terms](#presets-where-to-get-them-and-their-terms)
+9. [Hidden sources, several visualizers and performance](#hidden-sources-several-visualizers-and-performance)
+10. [Reading the OBS log](#reading-the-obs-log)
+11. [Troubleshooting](#troubleshooting)
+12. [Uninstall](#uninstall)
+13. [Linux (experimental, untested in OBS)](#linux-experimental-untested-in-obs)
+14. [For developers](#for-developers)
+15. [Credits and licences](#credits-and-licences)
 
 ## What you need
 
@@ -44,7 +47,38 @@ directly. You need no loopback device, no local server and no command-line flag.
 - A folder of MilkDrop `.milk` presets. See
   [Presets](#presets-where-to-get-them-and-their-terms).
 - The release files from this repository's GitHub Releases page: a `.pkg` installer and a `.zip`
-  holding the plugin bundle. The exact file names are on the release.
+  holding the plugin bundle ([Download](#download)).
+
+## Download
+
+Releases are on the [GitHub Releases page](https://github.com/lee5783/synesthesia-vibe-obs/releases).
+Each release has three files, where `<version>` is the plugin version (for example `0.1.0`):
+
+| File | What it is |
+|---|---|
+| `synesthesia-vibe-obs-<version>-macos-arm64.pkg` | The macOS installer, Apple Silicon only ([Option A](#option-a-the-installer-pkg)). |
+| `synesthesia-vibe-obs-<version>-macos-arm64.zip` | The same plugin bundle for a manual install ([Option B](#option-b-the-zip)). |
+| `SHA256SUMS.txt` | The SHA-256 checksums of the two files above. |
+
+- **Pre-releases only, for now.** Until the plugin's first full release, every release is marked
+  **Pre-release** on GitHub and its name ends in `-beta.<n>` or `-rc.<n>` (for example
+  *SynesthesiaVibe Visualizer 0.1.0-beta.1*). The file names carry only the plugin version.
+- **Not notarized.** The plugin is ad-hoc signed and not notarized by Apple, so macOS warns when you
+  open the installer. [Step 1](#step-1-install-the-plugin) shows how to open it anyway.
+- **No Linux file.** Releases have no Linux package yet. See
+  [Linux](#linux-experimental-untested-in-obs).
+
+**Check the download.** Put `SHA256SUMS.txt` in the same folder as the files you downloaded, then
+run, in Terminal:
+
+```sh
+cd ~/Downloads
+shasum -a 256 --ignore-missing -c SHA256SUMS.txt
+```
+
+Every file you downloaded must show `OK`. `--ignore-missing` skips the file you did not download.
+Any other result means the file is damaged or not the one on the release: delete it and download it
+again.
 
 ## Step 1: install the plugin
 
@@ -384,11 +418,114 @@ That is expected: the list shows your last choice and does not follow auto-cycle
 
 Your preset folder is yours and is not touched.
 
+## Linux (experimental, untested in OBS)
+
+A Linux build exists, but **nobody has run it in OBS yet**. Every build is compiled, packaged and
+checked automatically (the plugin loads as a library and exposes only OBS's entry points), but the
+visualizer has not been tested inside OBS on X11 or Wayland. Use it only to try it out, and expect
+problems.
+
+**What you need**
+
+- Ubuntu 24.04 on x86_64. Other distributions, other Ubuntu versions and Arm are not supported.
+- OBS Studio from the OBS project's PPA, `ppa:obsproject/obs-studio`, at or above the libobs version
+  the package was built against. At the time of writing that is **32.2.0**. Each build records its
+  version in its run summary on GitHub, under *Linux libobs*. The package does not enforce this
+  minimum itself, so check your OBS version (Help → About) before you install.
+- Not supported: **Flatpak OBS** (from Flathub), which cannot see plugins installed into `/usr`, and
+  Ubuntu's own `obs-studio` package, which is older than the version the plugin needs.
+
+**Getting the package**
+
+The Linux package is **not attached to releases**. It exists only as a build artifact of this
+repository's CI:
+
+1. Open the repository's [Actions](https://github.com/lee5783/synesthesia-vibe-obs/actions) tab,
+   choose the **CI** workflow and a successful run.
+2. Under **Artifacts**, download `synesthesia-vibe-obs-<version>-x86_64-linux-gnu`. GitHub asks you to
+   sign in, and deletes artifacts after a while (90 days by default).
+3. Unzip it. You get `synesthesia-vibe-obs-<version>-x86_64-linux-gnu.deb`.
+
+**Install**
+
+Quit OBS first. Install OBS from the PPA if you do not have it yet, then the package:
+
+```sh
+sudo add-apt-repository ppa:obsproject/obs-studio
+sudo apt update
+sudo apt install obs-studio
+sudo apt install ./synesthesia-vibe-obs-<version>-x86_64-linux-gnu.deb
+```
+
+The package installs two files, for all users:
+
+```
+/usr/lib/x86_64-linux-gnu/obs-plugins/synesthesia-vibe-obs.so
+/usr/share/obs/obs-plugins/synesthesia-vibe-obs/locale/en-US.ini
+```
+
+`dpkg -L synesthesia-vibe-obs` lists them. Then continue with
+[Step 3: add the source](#step-3-add-the-source); the settings, hotkeys and presets work as on
+macOS. OBS on Linux always uses OpenGL, so you can skip Step 2.
+
+**The OBS log on Linux**
+
+Help → Log Files → View Current Log, or the newest file in `~/.config/obs-studio/logs/`. Besides the
+lines in [Reading the OBS log](#reading-the-obs-log), the Linux build logs which windowing system OBS
+uses:
+
+```
+[synesthesia-vibe-obs] renderer check passed (OpenGL, device type 1)
+[synesthesia-vibe-obs] windowing platform: X11 (EGL)
+[synesthesia-vibe-obs] plugin loaded successfully (version 0.1.0)
+```
+
+On a Wayland session the second line reads `windowing platform: Wayland (EGL)`. If you try the
+plugin, these lines are the most useful thing to include in a report.
+
+**Uninstall**
+
+Quit OBS, then:
+
+```sh
+sudo apt remove synesthesia-vibe-obs
+```
+
+This removes both files. Remove visualizer sources from your scenes as on macOS
+([Uninstall](#uninstall), step 4).
+
+**Build it yourself**
+
+On Ubuntu 24.04 x86_64, with OBS from the PPA as above:
+
+```sh
+sudo apt install autoconf autoconf-archive automake bison build-essential cmake curl flex gettext \
+  git gperf libegl-dev libgl-dev libgles2-mesa-dev libglu1-mesa-dev libltdl-dev libopengl-dev \
+  libsimde-dev libtool libxcursor-dev libxinerama-dev libxkbcommon-dev libxml2-utils make \
+  ninja-build obs-studio pkg-config python3 tar unzip xorg-dev xsltproc zip
+
+git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
+~/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+export VCPKG_ROOT=~/vcpkg
+
+git clone --recursive https://github.com/lee5783/synesthesia-vibe-obs.git
+cd synesthesia-vibe-obs/plugin
+cmake --preset ubuntu-x86_64 -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build --preset ubuntu-x86_64
+cmake --build build_x86_64 --target package
+```
+
+The package is written to `plugin/release/synesthesia-vibe-obs-<version>-x86_64-linux-gnu.deb`,
+next to a `-dbgsym.ddeb` holding its debug symbols. The first build compiles the core's
+dependencies with vcpkg, which takes a while. Install the `.deb` as above. CMake 3.28 or later is
+needed (Ubuntu 24.04's `cmake` is fine), and the build only runs with the `ubuntu-x86_64` presets on
+x86_64.
+
 ## For developers
 
-Building the plugin from source, the dev-only preset copy, packaging and signing are described in
-[`docs/integrations.md`](../docs/integrations.md). This page covers only installing and using a
-release.
+Building the plugin from source on macOS, the dev-only preset copy, packaging and signing are
+described in [`docs/integrations.md`](../docs/integrations.md). Apart from the Linux section, this
+page covers only installing and using a release.
 
 ## Credits and licences
 
