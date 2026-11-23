@@ -77,9 +77,17 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/vcpkg-archives
-          key: vcpkg-macos-arm64-osx-${{ env.VCPKG_COMMIT }}-${{ steps.setup.outputs.core }}
+          key: vcpkg-macos-arm64-osx-${{ env.VCPKG_COMMIT }}-${{ steps.setup.outputs.core }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            vcpkg-macos-arm64-osx-${{ env.VCPKG_COMMIT }}-${{ steps.setup.outputs.core }}-
             vcpkg-macos-arm64-osx-${{ env.VCPKG_COMMIT }}-
+
+      - name: Count restored vcpkg archives
+        id: vcpkg-restored
+        run: |
+          count="$(find "${VCPKG_DEFAULT_BINARY_CACHE}" -type f -name '*.zip' | wc -l | tr -d ' ')"
+          echo "restored vcpkg binary archives: ${count}"
+          echo "count=${count}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up vcpkg
         run: |
@@ -104,14 +112,23 @@ jobs:
 
       - name: Check vcpkg binary cache
         id: vcpkg-archives
-        if: ${{ !cancelled() && steps.vcpkg-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() }}
+        env:
+          RESTORED: ${{ steps.vcpkg-restored.outputs.count }}
         run: |
-          count="$(find "${VCPKG_DEFAULT_BINARY_CACHE}" -type f -name '*.zip' | wc -l | tr -d ' ')"
-          echo "vcpkg binary archives: ${count}"
-          echo "count=${count}" >> "${GITHUB_OUTPUT}"
+          count=0
+          if [[ -d "${VCPKG_DEFAULT_BINARY_CACHE:-}" ]]; then
+            count="$(find "${VCPKG_DEFAULT_BINARY_CACHE}" -type f -name '*.zip' | wc -l | tr -d ' ')"
+          fi
+          echo "vcpkg binary archives: ${count} (restored ${RESTORED:-0})"
+          if (( count > ${RESTORED:-0} )); then
+            echo "save=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "save=false" >> "${GITHUB_OUTPUT}"
+          fi
 
       - name: Save vcpkg binary cache
-        if: ${{ !cancelled() && steps.vcpkg-cache.outputs.cache-hit != 'true' && steps.vcpkg-archives.outputs.count != '0' }}
+        if: ${{ !cancelled() && steps.vcpkg-archives.outputs.save == 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/vcpkg-archives
@@ -256,19 +273,37 @@ jobs:
           sudo add-apt-repository --yes ppa:obsproject/obs-studio
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
+            autoconf \
+            autoconf-archive \
+            automake \
+            bison \
             build-essential \
+            curl \
+            flex \
+            gettext \
+            gperf \
             libegl-dev \
             libgl-dev \
             libgles2-mesa-dev \
             libglu1-mesa-dev \
+            libltdl-dev \
             libopengl-dev \
             libsimde-dev \
+            libtool \
             libxcursor-dev \
             libxinerama-dev \
+            libxkbcommon-dev \
+            libxml2-utils \
+            make \
             ninja-build \
             obs-studio \
             pkg-config \
-            xorg-dev
+            python3 \
+            tar \
+            unzip \
+            xorg-dev \
+            xsltproc \
+            zip
           gcc --version | head -n 1
           cmake --version | head -n 1
           echo "ninja $(ninja --version)"
@@ -291,9 +326,17 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/vcpkg-archives
-          key: vcpkg-linux-x64-linux-${{ env.VCPKG_COMMIT }}-${{ steps.setup.outputs.core }}
+          key: vcpkg-linux-x64-linux-${{ env.VCPKG_COMMIT }}-${{ steps.setup.outputs.core }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            vcpkg-linux-x64-linux-${{ env.VCPKG_COMMIT }}-${{ steps.setup.outputs.core }}-
             vcpkg-linux-x64-linux-${{ env.VCPKG_COMMIT }}-
+
+      - name: Count restored vcpkg archives
+        id: vcpkg-restored
+        run: |
+          count="$(find "${VCPKG_DEFAULT_BINARY_CACHE}" -type f -name '*.zip' | wc -l | tr -d ' ')"
+          echo "restored vcpkg binary archives: ${count}"
+          echo "count=${count}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up vcpkg
         run: |
@@ -311,14 +354,23 @@ jobs:
 
       - name: Check vcpkg binary cache
         id: vcpkg-archives
-        if: ${{ !cancelled() && steps.vcpkg-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() }}
+        env:
+          RESTORED: ${{ steps.vcpkg-restored.outputs.count }}
         run: |
-          count="$(find "${VCPKG_DEFAULT_BINARY_CACHE}" -type f -name '*.zip' | wc -l | tr -d ' ')"
-          echo "vcpkg binary archives: ${count}"
-          echo "count=${count}" >> "${GITHUB_OUTPUT}"
+          count=0
+          if [[ -d "${VCPKG_DEFAULT_BINARY_CACHE:-}" ]]; then
+            count="$(find "${VCPKG_DEFAULT_BINARY_CACHE}" -type f -name '*.zip' | wc -l | tr -d ' ')"
+          fi
+          echo "vcpkg binary archives: ${count} (restored ${RESTORED:-0})"
+          if (( count > ${RESTORED:-0} )); then
+            echo "save=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "save=false" >> "${GITHUB_OUTPUT}"
+          fi
 
       - name: Save vcpkg binary cache
-        if: ${{ !cancelled() && steps.vcpkg-cache.outputs.cache-hit != 'true' && steps.vcpkg-archives.outputs.count != '0' }}
+        if: ${{ !cancelled() && steps.vcpkg-archives.outputs.save == 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/vcpkg-archives

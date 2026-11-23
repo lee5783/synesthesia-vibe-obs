@@ -70,3 +70,65 @@ No probe program, test target or Xvfb is committed (C-027); the checks live inli
   artifact only.
 - Areas to scrutinize: the linker-reserved allow-list; `Depends` must contain `obs`.
 - How to run: push the branch; watch workflow **CI**, job **Build / Linux x86_64**.
+
+## CI iteration 1 (run 45139712419, PR #3, commit f191650)
+
+**Result:** `Build / macOS arm64` passed, with every inspection check green. `Build / Linux x86_64`
+failed inside the core's ExternalProject configure, during `vcpkg install`, at package 17/27,
+`pthread-stubs:x64-linux`:
+`pthread-stubs currently requires the following programs from the system package manager: autoconf autoconf-archive automake libtoolize`.
+The `CMAKE_C_COMPILER not set` lines after it are knock-on errors from the aborted inner
+`project()`. Our sources and the core sources were never reached. The cause is CI tooling, so the
+C-013 stop rule does not apply.
+
+**Analysis of the 27-package plan** (portfiles in a local vcpkg checkout at the pinned `5f96cd15`;
+the run used the same git-tree SHAs):
+- Already built before the failure: `vcpkg-cmake*`, `vcpkg-make`, `xorg-macros`, `xtrans`,
+  `vcpkg-tool-meson`, `zlib`, `libiconv`, `libxml2`, `libxslt`, `xproto`, `xcb-util-m4`,
+  `xcb-proto`, `pthreads`, `pthread`.
+- `libxau`, `libxdmcp`, `libxcb`, `libx11`, `xproto`, `xtrans`, `xorg-macros` and `xcb-proto` are
+  **empty packages on Linux**. Their portfiles skip the build unless
+  `X_VCPKG_FORCE_VCPKG_X_LIBRARIES` is set, and expect the system X11 dev packages, which
+  `xorg-dev` covers. `libiconv` is empty too (glibc iconv).
+- `pthread-stubs` is the one autotools build: `vcpkg_make_configure(AUTORECONF)`. The vcpkg-make
+  check needs `autoreconf`, `aclocal`, `libtoolize` and the autoconf-archive macros. It also stops
+  on missing `libltdl` for configure scripts that use ltdl, and warns about `autopoint`/gettext.
+- The rest are CMake ports: `bzip2`, `glfw3` (against system X11; the `wayland` feature is off),
+  `glm`, `gtest`, `projectm-eval`.
+
+**Fix (one round trip, covering the whole chain):** the Linux apt list in `build-plugin.yaml` now
+adds:
+- `autoconf autoconf-archive automake libtool libltdl-dev gettext make`, for `pthread-stubs`'
+  autoreconf and the vcpkg-make checks;
+- `bison flex gperf python3 libxml2-utils xsltproc`, which the xcb/X11 ports name (python3,
+  xmllint, xsltproc) and which cost little if the empty ports never need them;
+- `curl zip unzip tar`, vcpkg's own requirements (already on the image; listed explicitly);
+- `libxkbcommon-dev`, cheap insurance for glfw.
+
+All of these are standard Ubuntu 24.04 packages. The packages from run 1 installed fine.
+
+**Cache fix (both jobs):** the save step already ran on failure (`!cancelled()`). Run 1 saved 16
+archives (6.6 MB) under key `vcpkg-linux-x64-linux-<vcpkg>-<core>`. Because that key was fixed,
+run 2 would have restored it as an **exact hit**, `cache-hit == 'true'` would have skipped the
+save, and the packages built after the failure point would never be cached. Now:
+- The save key ends in `-<run_id>-<run_attempt>`, so every save gets its own entry and a partial
+  cache can't block later saves.
+- Restore uses the prefixes `vcpkg-<os>-<triplet>-<vcpkg>-<core>-`, then
+  `vcpkg-<os>-<triplet>-<vcpkg>-`, so it picks the newest matching entry. Run 1's entry matches
+  the second prefix, so run 2 starts with its 16 archives.
+- The new step *Count restored vcpkg archives* records the restored count. *Check vcpkg binary
+  cache* runs whenever the run was not cancelled and saves only if the archive count went up, so
+  a warm run with nothing new adds no cache entry. It treats a missing cache dir as 0.
+
+Local check of the save decision (scripts extracted verbatim, stand-in archive dir with 3 zips):
+restored 3 → `save=false`; restored 2 → `save=true`; nothing restored → `save=true`; setup never
+ran → `save=false`.
+
+**Verification:** `actionlint -shellcheck=$(command -v shellcheck) .github/workflows/*.yaml`:
+exit 0.
+
+**Files changed in this iteration:** `.github/workflows/build-plugin.yaml` (Linux apt list; vcpkg
+cache restore, count, check and save in both jobs). This handoff file and `session.log`.
+
+**Still unverified:** whatever comes after `vcpkg install` on Linux: the core compile under GCC 13,
+PIC, the plugin compile under `-Werror`, the link and the packaging checks.

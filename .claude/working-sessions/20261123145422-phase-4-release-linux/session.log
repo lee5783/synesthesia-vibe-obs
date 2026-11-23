@@ -13,3 +13,6 @@
 2026-11-23T08:32:38Z  developer  task END P4-004 (output-P4-004.md written)
 2026-11-23T08:32:58Z  developer  task END P4-005 (output-P4-005.md written; Linux unverified until CI)
 2026-11-23T08:33:20Z  developer  task END P4-006 (output-P4-006.md written; ready to push)
+2026-11-23T08:42:38Z  orchestrator  pushed f191650, opened draft PR #3 (base feature/plugin-phase-2-macos). CI run 45139712419: macOS success; Linux failed at vcpkg pthread-stubs (autotools missing, C-014). Sent back to developer
+2026-11-23T08:42:45Z  developer  CI iteration 1: P4-005 Linux vcpkg pthread-stubs needs autotools; fixing forward
+2026-11-23T08:44:24Z  developer  CI iteration 1 fix done: autotools/X-chain apt packages + per-run vcpkg cache keys; actionlint clean; ready to push
