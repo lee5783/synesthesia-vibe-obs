@@ -551,7 +551,9 @@ refuses, ship the zip unstapled; Gatekeeper then checks the ticket online.
 **In CI (C-018).** Built, not yet run with real credentials.
 - `build-plugin.yaml` takes a `sign` input, false by default. `ci.yaml` never sets it, so PR and
   `master` builds stay ad-hoc and read no secret. `release.yaml` sets it when the Actions variable
-  `MACOS_NOTARIZE` is `true`.
+  `MACOS_NOTARIZE` is `true`, and calls the build with `secrets: inherit`. Without that, the
+  called workflow sees no secrets at all, even environment secrets of a job that names the
+  environment (first signed tag run: the secrets arrived empty).
 - With `sign` on, the macOS job runs in the GitHub Environment `macos-signing` and reads its
   secrets from there:
   - `MACOS_SIGNING_CERT`: a base64 `.p12` holding the Developer ID Application and the Developer

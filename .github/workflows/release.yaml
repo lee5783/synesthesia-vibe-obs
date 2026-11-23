@@ -89,6 +89,7 @@ jobs:
     with:
       config: Release
       sign: ${{ vars.MACOS_NOTARIZE == 'true' }}
+    secrets: inherit
 
   release:
     name: Create draft release
