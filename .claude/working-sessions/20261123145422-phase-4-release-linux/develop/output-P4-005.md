@@ -205,3 +205,34 @@ dependencies* and *Record libobs version*). This handoff file and `session.log`.
 
 **Still unverified:** everything from the link onward (the iteration 2 `LINK_GROUP` fix has not had
 a CI run yet).
+
+## CI iteration 4 (run 45143470392, commit 61107e0)
+
+**Result:** macOS passed. On Linux, the iteration 3 update retry worked: 503 on attempts 1 and 2,
+the PPA `InRelease` fetched on attempt 3, and the candidate passed the PPA-origin check. Then
+`apt-get install` failed fetching the package itself:
+`obs-studio_32.2.0-0obsproject1~noble_amd64.deb 503 Service Unavailable`, exit 100. Launchpad's
+PPA CDN is returning 503s on and off, for both index and pool files.
+
+**Fix (`.github/workflows/build-plugin.yaml`, Linux *Install build dependencies*, smallest
+change):**
+- `Acquire::Retries "5"` is written to `/etc/apt/apt.conf.d/80-retries` first, so every apt fetch
+  in the job (update and install) retries a failed file up to 5 times with apt's own backoff.
+- The package list moved into a bash array, and `apt-get install` sits in a bounded loop of 3
+  attempts with 30 s and 60 s waits. After the third failure it stops with
+  `::error::apt-get install failed 3 times; …`.
+- The update loop (5 attempts, `--error-on=any`), the PPA-candidate check before install, and the
+  PPA-origin and header checks in *Record libobs version* are unchanged.
+
+**Local checks:**
+- actionlint with shellcheck: exit 0.
+- The install loop, extracted verbatim, with a stand-in `sudo` that fails the first N calls (and a
+  no-op `sleep`): N=2 installs on attempt 3 with all 35 arguments passed (exit 0); N=5 stops after 3
+  attempts with the error line (exit 1).
+
+**Files changed in this iteration:** `.github/workflows/build-plugin.yaml`. This handoff file and
+`session.log`.
+
+**Still unverified:** everything from the link onward (the iteration 2 `LINK_GROUP` fix and all
+binary and package checks). A long Launchpad outage can still fail the job. It now fails with a
+clear message, and the fix is to re-run.

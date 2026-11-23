@@ -270,6 +270,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          echo 'Acquire::Retries "5";' | sudo tee /etc/apt/apt.conf.d/80-retries
           sudo add-apt-repository --yes --no-update ppa:obsproject/obs-studio
           for attempt in 1 2 3 4 5; do
             if sudo apt-get update --error-on=any; then
@@ -288,38 +289,50 @@ jobs:
             echo "::error::obs-studio candidate '${candidate}' is not from ppa:obsproject/obs-studio; refusing to build against the distro OBS"
             exit 1
           fi
-          sudo apt-get install -y --no-install-recommends \
-            autoconf \
-            autoconf-archive \
-            automake \
-            bison \
-            build-essential \
-            curl \
-            flex \
-            gettext \
-            gperf \
-            libegl-dev \
-            libgl-dev \
-            libgles2-mesa-dev \
-            libglu1-mesa-dev \
-            libltdl-dev \
-            libopengl-dev \
-            libsimde-dev \
-            libtool \
-            libxcursor-dev \
-            libxinerama-dev \
-            libxkbcommon-dev \
-            libxml2-utils \
-            make \
-            ninja-build \
-            obs-studio \
-            pkg-config \
-            python3 \
-            tar \
-            unzip \
-            xorg-dev \
-            xsltproc \
+          packages=(
+            autoconf
+            autoconf-archive
+            automake
+            bison
+            build-essential
+            curl
+            flex
+            gettext
+            gperf
+            libegl-dev
+            libgl-dev
+            libgles2-mesa-dev
+            libglu1-mesa-dev
+            libltdl-dev
+            libopengl-dev
+            libsimde-dev
+            libtool
+            libxcursor-dev
+            libxinerama-dev
+            libxkbcommon-dev
+            libxml2-utils
+            make
+            ninja-build
+            obs-studio
+            pkg-config
+            python3
+            tar
+            unzip
+            xorg-dev
+            xsltproc
             zip
+          )
+          for attempt in 1 2 3; do
+            if sudo apt-get install -y --no-install-recommends "${packages[@]}"; then
+              break
+            fi
+            if [[ "${attempt}" == "3" ]]; then
+              echo "::error::apt-get install failed 3 times; ppa:obsproject/obs-studio or an Ubuntu mirror is unreachable"
+              exit 1
+            fi
+            echo "apt-get install failed (attempt ${attempt}), retrying in $((attempt * 30)) s"
+            sleep "$((attempt * 30))"
+          done
           gcc --version | head -n 1
           cmake --version | head -n 1
           echo "ninja $(ninja --version)"
