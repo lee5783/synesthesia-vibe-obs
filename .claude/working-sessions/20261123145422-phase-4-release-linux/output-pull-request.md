@@ -1,14 +1,212 @@
-## Summary
+This PR carries **Phase 2 (macOS native plugin)** and **Phase 4 (CI, release workflow and
+experimental Linux build)** of `PLAN.md`. Phase 2 was #2, which is now closed in favour of this
+PR; its commits are included here unchanged.
+
+## Part 1 — Phase 2: macOS plugin
+
+### Summary
+
+This PR implements Phase 2 of `PLAN.md` on macOS (Apple Silicon): the SynesthesiaVibe
+Visualizer source for OBS.
+- **Audio:** the source reacts to a chosen OBS audio source or to the whole mix.
+- **Presets:** presets come from a user folder and load off the graphics thread. Auto-cycle,
+  random order, blend times and four hotkeys are included.
+- **Output:** width, height and render scale are configurable.
+- **Packaging:** an arm64 `.pkg` and a zip.
+
+It also fixes the spike's thread race, the black frame after a source comes back on air, and
+transparent presets.
+
+**Its three deferred OBS checks passed on 2026-11-23**: the Done-when run (P2-011, now with filters
+and projectors too), the 1080p60 measurement (P2-012) and the in-OBS check of the dialog fix
+(P2-010b). The evidence is in the Phase 2 session's `develop/evidence/P2-011/`, `P2-012/` and `P2-010b/`.
+
+**Ticket:** none
+**Design:** none
+
+### Changes
+
+**Plugin** (`plugin/src/visualizer-source.cpp` unless noted)
+- **P2-001 build guard:** `plugin/CMakeLists.txt` fails configure with one clear message unless
+  the host is macOS, the generator is Xcode and the architecture is arm64 alone.
+- **P2-002 thread-race fix:** `video_tick` now only writes atomics. `video_render` consumes the
+  frame delta (capped at 0.1 s, reset on show/activate) and makes every `sv_*` call under the
+  graphics context.
+- **P2-003 opaque draw:** the source draws with `OBS_EFFECT_OPAQUE`, so presets that write
+  alpha 0 (e.g. swarm) still cover what is under them.
+- **P2-004 audio from a chosen source:**
+  - new `plugin/src/audio-ring.{hpp,cpp}`: a lock-free single-producer ring;
+  - an "Audio source" list, stored by UUID and resolved lazily through a weak reference;
+  - the audio capture callback resamples to 44.1 kHz stereo;
+  - the ring is drained into `sv_push_pcm_float` in render;
+  - after 0.5 s with no audio, render pushes silence, because the core never expires old PCM;
+  - the synthetic tone is removed.
+- **P2-005 whole mix:** `audio_output_connect` on a chosen mix track (1–6). Only one audio feed
+  is attached at a time, and it is disconnected on change and on destroy.
+- **P2-006 presets:**
+  - a folder picker and a preset list;
+  - a per-source `os_task_queue` worker runs `sv_prepare_preset`, drops stale results, and
+    `sv_commit_preset` runs in render inside the GL guard;
+  - the worker is drained before `sv_destroy`;
+  - the synchronous load and `preset_path` are removed.
+- **P2-007 auto-cycle:** cycle seconds, blend seconds and random order (never repeats the
+  current preset), through `sv_set_transition_config` and the preset-request callback. Settings
+  changes apply live.
+- **P2-008 hotkeys:** next, previous (50-entry history), random, and pause/resume. Pause defers
+  core requests. Hotkeys are unregistered first in `destroy`.
+- **P2-009 resolution:** width × height (default 1920×1080, 128–8192) and a 100/75/50 % render
+  scale. `sv_resize` runs inside the GL guard.
+- **P2-010 settings:** properties in four groups (Presets, Transitions, Audio, Output), defaults
+  for all 10 settings, and every UI string in `plugin/data/locale/en-US.ini`.
+- **P2-010b dialog fix:** a "(first preset)" list entry whose value is `""`, so opening the
+  properties dialog no longer saves a preset.
+- **P2-013 packaging:** project-owned `plugin/packaging/macos/distribution.in` declares
+  `hostArchitectures="arm64"`, overriding the template without editing it. The release is an
+  ad-hoc `.plugin`, an unsigned `.pkg` and a `ditto` zip, with no presets bundled.
+- **P2-014 `plugin/README.md`:** install (pkg/zip, unnotarized Gatekeeper steps), settings by
+  group, hotkeys, presets, the OBS log, troubleshooting and uninstall.
+
+**Docs and agent knowledge**
+- `docs/`: architecture (frame flow, audio path, preset path, threading table), structure,
+  integrations (dev install, packaging, notarization placeholders), conventions (locale keys,
+  concurrency rules), testing (websocket verification, dialog-safety rule), stack and concerns.
+  The concerns page covers what was fixed, the limits, the review nits, the open checks, and
+  drafts of upstream asks #4 and #6.
+- `.claude/how-x-works/`: `plugin-render-frame.md` rewritten; `plugin-audio-path.md` and
+  `plugin-preset-loading.md` are new.
+- `.claude/common-issues/`: entries for the build guard, the `release`/`Release` folder
+  collision, the quoted pkg receipt id, `._` provenance sidecars, `sv_resize` state, the
+  properties-dialog wedge and `RemoveInput` in a scene that isn't rendering.
+- `PLAN.md` (user-approved scope only): status line, Phase 2 task states, *Done-when state*, and
+  upstream ask #5 (host-settable random-texture folder, not filed).
+- `.claude/working-sessions/20261123091415-plugin-phase-2-macos/`: this run's artifacts.
+- `.claude/working-sessions/20261123004446-browser-source-phase-1/session.log`: one line
+  recording that PR #1 was opened.
+
+### Verification
+
+- [x] Builds clean: `cd plugin && cmake --preset macos-arm64 && cmake --build --preset macos-arm64`
+  gives `** BUILD SUCCEEDED **` under `-Werror`, with 0 warnings from `plugin/src`. A from-scratch
+  configure also passed (P2-001), and the Release build passed (P2-013).
+- [x] `nm -gU` shows exactly the 7 `obs_module_*` exports after every task. `lipo -info` reports
+  arm64 only.
+- [ ] Existing tests pass: no test suite exists (`docs/testing.md`).
+- Tests added: none, not requested.
+
+**Evidence**: from `develop/evidence/<task>/`. Each folder's `.md` report quotes the key
+results. Screenshots are git-ignored; attach them if wanted.
+
+| What it shows | Source |
+|---|---|
+| Race fixed: the detector saw 3 overlaps in 60 s on the spike build; on the final build, 0 in 22,450 core calls over a 5-min screenshot stress run | `P2-002/P2-002-race-fix.md` |
+| An off-air screenshot is no longer black | `P2-002-final-2-hidden-12s.png` |
+| Swarm draws opaque: min alpha 0 before, 255 after; 0 magenta pixels show through | `P2-003/P2-003-opaque-draw.md`, `P2-003-after-swarm-nest.png` |
+| Audio reaction: levels up on the beat; 0 in silence, muted, None and after removal; switching detaches before attaching | `P2-004/P2-004-audio-source.md` |
+| Whole mix: reacts on the fixture's track, reads exactly 0 on others | `P2-005/P2-005-whole-mix.md` |
+| Preset switching: 30 switches skipped 16 frames before, 0 after (also 0 with about 400 ms prepares); broken and empty folders handled | `P2-006/P2-006-presets.md` |
+| Auto-cycle timing, random order with no repeat, live settings changes, mid-blend screenshots | `P2-007/P2-007-cycle.md` |
+| Hotkeys through `TriggerHotkeyByName`; pause defers requests; two instances act independently | `P2-008/P2-008-hotkeys.md` |
+| Resize live; probe orientation correct at every scale; other sources bit-identical after 65 resizes | `P2-009/P2-009-resolution.md` |
+| All defaults present; strings audit; group layout | `P2-010/P2-010-settings.md` |
+| Package inspection: arm64 distribution, payload, ad-hoc signature, `spctl` rejects as expected | `P2-013/P2-013-package-inspection.md` |
+
+Each OBS session in P2-002 to P2-009 ended with 0 GL error lines and `Number of memory leaks: 0`.
+The P2-010 session ended in a forced stop (see Risks), so it has no leak count.
+
+**Manual QA**: from `plan/output-plan-test-cases.md`
+
+| Check | Status |
+|---|---|
+| Renders and other sources stay correct (GL state) | **Pass** on the final build (P2-011): image, colour and text sources, scene switches, hide/show, a second instance, filters, a source projector, multiview and program projector. 0 GL errors |
+| Reacts to a chosen source and to the whole mix | Verified with a Media Source WAV fixture. Real mic and desktop audio need your macOS permissions |
+| Preset and transition changes apply without restart | Verified (P2-006, P2-007) |
+| Removing the source or quitting leaks nothing | **Pass** (P2-011): 6 removals with audio attached and a prepare queued. Every quit logged `Number of memory leaks: 0` |
+| **1080p60 without stalling OBS** | **Pass (P2-012)** in the separate `synesthesia-1080p60` profile: 60 fps in all 30 samples, 3.75–8.60 ms render time, 1 skipped frame in 17 446 |
+| Dialog no longer saves a preset on open (P2-010b) | **Pass**: opening the dialog shows "(first preset)" and writes no setting |
+| Install from the `.pkg` / zip into OBS | **Not run.** The package was inspected, not installed |
+
+### Review
+
+- [x] Reviewed by the `code-reviewer` pass. Decision: **Approve**. 0 blockers, 2 should-fix
+  (README), 9 nits.
+- [x] Must-fix findings addressed: S1 (the dSYM is now in the README's install and uninstall
+  text) and S2 (exact `pkgutil --forget` command for the quoted receipt id), plus N4 (README
+  blend wording). N1–N3 and N5–N9 are recorded in `docs/concerns.md`.
+- **Areas to scrutinize:**
+  - the cycle-latch and pause bookkeeping (`take_preset_job`, `clear_cycle_request`,
+    `preset_requested`, `toggle_auto_cycle_pause`);
+  - `previous_from_history`;
+  - the audio attach/detach under `audio_mutex` and the resampler lifetime;
+  - the worker teardown order before `sv_destroy`;
+  - the `distribution.in` override running after the template's `configure_file`.
+
+### Documentation
+
+- [x] `docs/**` updated: architecture, structure, integrations, conventions, testing, stack,
+  concerns and the README listing.
+- [x] New gotchas and flows recorded in `COMMON-ISSUES` (plugin-build, plugin-runtime,
+  verification-tooling) and `HOW-X-WORKS` (three plugin flows).
+- Root `README.md`: not touched, not requested. `plugin/README.md` is new (P2-014).
+
+### Risks and follow-ups
+
+- **Formerly deferred checks:** P2-011, P2-012 and P2-010b passed on 2026-11-23 (see *Verification*).
+  The pkg install into OBS (TC-M04) is still open.
+- **OBS was force-stopped once:** a test removed a source while its properties dialog was open,
+  and the agent stopped OBS with SIGINT. The crash report has no frames from the plugin. OBS then
+  stuck at its safe-mode prompt, which is why those checks were deferred until 2026-11-23. Rule added: never
+  remove an input or switch collection with its properties dialog open.
+- **Shared audio buffer (C-006):** the core's PCM buffer is process-global, so several
+  visualizers on different audio inputs react to all of them mixed. Upstream ask #4 is drafted
+  in `docs/concerns.md`.
+- **Stale audio:** the core never expires old PCM, and the plugin works around it with a 0.5 s
+  silence push. Upstream ask #6 is drafted.
+- **Random textures:** the core searches only the bundle's `textures/` folder, which is empty in
+  a release, so presets that ask for a random texture get none. Upstream ask #5 is in `PLAN.md`.
+- **Notarization:** not done (no Developer ID on this Mac). The `.pkg` is unsigned and the
+  `.plugin` ad-hoc signed, so Gatekeeper steps are needed. Commands with placeholders are in
+  `docs/integrations.md`.
+- **Template packaging quirks:** the pkg receipt id contains literal quotes, and the pkg installs
+  a `.dSYM`. Both are documented, not fixed.
+- **Smaller behaviours:**
+  - creating a visualizer skips about 2 frames, because `sv_create` runs on the graphics thread;
+  - removing a source can wait up to about 0.4 s for a prepare in flight;
+  - a resize resets the image;
+  - render scale only lowers GetStats time when the GPU is saturated;
+  - the Preset list doesn't follow auto-cycle (a "now playing" line is a follow-up).
+- **Not run on this Mac:** real mic and desktop audio (OBS's macOS microphone permission is off),
+  a real Metal renderer, and OBS versions other than 33.0.3.
+- **Your cleanup:** turn obs-websocket authentication back on with a new password, and delete the
+  `synesthesia-spike` scene collection when done. OBS is past its startup prompt, and the test
+  plugin is removed from your plugins folder.
+
+### Checklist
+
+- [x] No secrets, tokens or credential files in the diff. Grepped for the websocket password,
+  credential and scratchpad paths, `/Users/` paths, local folder names, signing identity names
+  and team IDs. The reviewer ran the same scan.
+- [x] No AI-session-only files staged unintentionally. Session artifacts are committed per
+  `HARNESS.md`; bulk evidence (PNG, logs, scripts) is git-ignored.
+- [x] New files carry the standard header (`audio-ring.*`, `distribution.in` as an XML comment).
+  README and JSON are exempt; the verbatim template files are unchanged (`git diff master -- plugin/cmake` is empty).
+- [x] No unrequested code comments added. The reviewer confirmed this.
+- [x] Style matches the sibling components. The reviewer confirmed this.
+- [ ] Shared components reused or extended: N/A. Sibling libobs patterns were followed
+  (compressor sidechain, slideshow folder and hotkeys).
+
+## Part 2 — Phase 4: CI, release and Linux
+
+### Summary
 
 Phase 4 of `PLAN.md` adds:
 - **CI.** GitHub Actions builds, packages and checks the plugin on every PR for macOS arm64 and Linux x86_64.
 - **A release workflow.** A `v*` tag produces a **draft prerelease** with the macOS `.pkg`, the `.zip` and `SHA256SUMS.txt`.
 - **An experimental Linux port.** CI builds it, runs link checks on it and packages it as a `.deb`. Nobody has tested it in OBS yet.
 
-This PR is stacked on #2 (Phase 2, macOS). Retarget it to `master` once #2 merges.
+Phase 2 (macOS) is Part 1 above.
 
 The Phase 4 items stand as follows:
-- **Item 1, CI plus release:** done. Releases are prerelease-only while Phase 2 is open, and Windows stays blocked by Phase 3.
+- **Item 1, CI plus release:** done. Releases are prerelease-only until notarization and the pkg install check, and Windows stays blocked by Phase 3.
 - **Item 2, Linux:** built and checked in CI. The `.deb` stays a workflow artifact until a real Ubuntu X11/Wayland test passes.
 - **Item 3, forum page:** dropped for now.
 - **Item 4, `codebase-mapper`:** closed, because the `docs/` corpus already exists.
@@ -16,7 +214,7 @@ The Phase 4 items stand as follows:
 **Ticket:** none
 **Design:** none
 
-## Changes
+### Changes
 
 **CI and release**
 - **`.github/workflows/build-plugin.yaml` (new, reusable).** It has two jobs:
@@ -64,7 +262,7 @@ The Phase 4 items stand as follows:
     - install, uninstall and logs;
     - how to build it yourself.
 
-## Verification
+### Verification
 
 - [x] **Builds clean, macOS, locally.** `cmake --preset macos-arm64 && cmake --build --preset macos-arm64`. `nm -gU` still lists exactly the 7 exports, and the `otool -L` imports and undefined symbols match the pre-Phase-4 build.
 - [x] **Builds clean, CI.** On draft PR #3 both jobs are green: run 45144284376 at ec49eeb, and run 45150243042 at f57bf4e, the review fixes. Runs 1–4 failed and were fixed forward:
@@ -121,7 +319,7 @@ dlopen probe: RTLD_NOW | RTLD_LOCAL load succeeded and obs_module_load resolved
 | TC-M03 | OBS usable with obs-websocket | The plugin still loads in OBS after the loader split | **Pass** (2026-11-23 follow-up): `renderer check passed (OpenGL, device type 1)`, `sv_init_gl and sv_create succeeded`, 0 GL errors, `Number of memory leaks: 0` (`develop/evidence/P4-003-obs-smoke.md`) |
 | TC-L01–L08 | An Ubuntu 24.04 machine, X11 and Wayland | Install, render, audio, settings, teardown, uninstall; Flatpak refused | **User's task P4-008, not run.** Linux stays off releases until it passes |
 
-## Review
+### Review
 
 - [x] **Reviewed by the `code-reviewer` pass.** Decision: **Approve**, nothing blocking (`review/output-review-findings.md`). It covered:
   - the SHA pins, checked against the official tags;
@@ -144,7 +342,7 @@ dlopen probe: RTLD_NOW | RTLD_LOCAL load succeeded and obs_module_load resolved
   - the release tag gating in `release.yaml`;
   - the apt retry and PPA-origin checks in the Linux job.
 
-## Documentation
+### Documentation
 
 - [x] **`docs/**` updated:**
   - `integrations.md`: CI/CD, pinned actions, caches, releases, the Linux build and the PPA;
@@ -160,7 +358,7 @@ dlopen probe: RTLD_NOW | RTLD_LOCAL load succeeded and obs_module_load resolved
   - `CLAUDE.md` *Setup*: one Linux build line.
   - Root `README.md`: not touched.
 
-## Risks and follow-ups
+### Risks and follow-ups
 
 - **Linux is untested in OBS.** P4-008 is your Ubuntu 24.04 X11 and Wayland test. When it passes, attach the `.deb` to releases (a one-line switch in `release.yaml`).
 - **Linux OBS minimum.** It is whatever the PPA ships on the build day, 32.2.0 now. The `.deb`'s `Depends: obs-studio` has no version, so apt won't enforce it. Flatpak OBS is not supported.
@@ -170,7 +368,7 @@ dlopen probe: RTLD_NOW | RTLD_LOCAL load succeeded and obs_module_load resolved
 - **Not in this PR:** Windows (Phase 3, blocked) and a universal macOS binary (C-025).
 - **Cache cleanup.** The throwaway tag left about 455 MiB of tag-scoped Actions caches. They expire after 7 days unused.
 
-## Checklist
+### Checklist
 
 - [x] No secrets, tokens or credential files in the diff. There are no `secrets.*` references. The only email is the agreed `lee5783@users.noreply.github.com`.
 - [x] Session artifacts under `.claude/working-sessions/20261123145422-phase-4-release-linux/` are committed by design; bulk evidence is git-ignored.
@@ -180,6 +378,7 @@ dlopen probe: RTLD_NOW | RTLD_LOCAL load succeeded and obs_module_load resolved
 - [x] `plugin/cmake/**` (template) and `external/synesthesia-vibe` (core) unchanged.
 
 ---
-🤖 Built with an AI vibe-flow run — session `20261123145422-phase-4-release-linux`
+🤖 Built with AI vibe-flow runs: sessions `20261123091415-plugin-phase-2-macos` and
+`20261123145422-phase-4-release-linux`
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

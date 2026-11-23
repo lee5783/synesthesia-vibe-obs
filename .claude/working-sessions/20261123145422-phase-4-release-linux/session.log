@@ -50,3 +50,4 @@
 2026-11-23T12:20:28Z  orchestrator  retest: user approved PLAN.md text (applied) and a projector/multiview/filter run; reinstalling production build
 2026-11-23T12:55:09Z  orchestrator  retest: projectors left open behind other windows; user chose cleanup then quit OBS to close them
 2026-11-23T12:56:10Z  orchestrator  retest: session C (projectors/multiview/filters) passed, leaks 0; docs, PLAN.md and PR body updated; committing
+2026-11-23T13:05:18Z  orchestrator  user: close PR #2, use PR #3 for Phase 2 + 4; combined PR body, retarget #3 to master
