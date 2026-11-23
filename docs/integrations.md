@@ -548,16 +548,37 @@ ditto -c -k --norsrc --noextattr --keepParent synesthesia-vibe-obs.plugin synest
 Unverified: whether `stapler` staples a `.plugin` bundle (it does for apps, pkgs and dmgs). If it
 refuses, ship the zip unstapled; Gatekeeper then checks the ticket online.
 
-**In CI, later (C-018).**
-- Today CI signs ad-hoc only and reads no secrets.
-- A future notarizing job would read the certificates and notary credentials from GitHub
-  encrypted secrets, never from the repo. These names are placeholders only; no workflow
-  references them yet:
-  - `<MACOS_SIGNING_APPLICATION_IDENTITY>`, `<MACOS_SIGNING_INSTALLER_IDENTITY>`;
-  - `<MACOS_SIGNING_CERT>` (base64 `.p12`), `<MACOS_SIGNING_CERT_PASSWORD>`,
-    `<MACOS_KEYCHAIN_PASSWORD>`;
-  - `<MACOS_NOTARIZATION_USERNAME>`, `<MACOS_NOTARIZATION_PASSWORD>`, `<MACOS_NOTARIZATION_TEAM_ID>`.
-- Only a job scoped to tag pushes would read them. A `pull_request` run never sees secrets.
+**In CI (C-018).** Built, not yet run with real credentials.
+- `build-plugin.yaml` takes a `sign` input, false by default. `ci.yaml` never sets it, so PR and
+  `master` builds stay ad-hoc and read no secret. `release.yaml` sets it when the Actions variable
+  `MACOS_NOTARIZE` is `true`.
+- With `sign` on, the macOS job runs in the GitHub Environment `macos-signing` and reads its
+  secrets from there:
+  - `MACOS_SIGNING_CERT`: a base64 `.p12` holding the Developer ID Application and the Developer
+    ID Installer certificates with their private keys.
+  - `MACOS_SIGNING_CERT_PASSWORD`: the `.p12` export password.
+  - `MACOS_NOTARIZATION_USERNAME`: the Apple ID; `MACOS_NOTARIZATION_PASSWORD`: an app-specific
+    password for it.
+- *Import signing certificate*, before *Configure*:
+  - imports the `.p12` into a temporary keychain with a random password;
+  - requires exactly one Developer ID Application and one Installer identity sharing one team ID;
+  - exports `CODESIGN_IDENT`, `CODESIGN_TEAM` and `INSTALLER_IDENT`. The presets read the first
+    two, so Xcode signs with the hardened runtime and `--timestamp`.
+- *Sign and notarize*, between *Package* (`cmake --install`) and *Archive*:
+  1. `productsign` the pkg;
+  2. `notarytool submit --wait` (on failure it prints `notarytool log` and stops);
+  3. `stapler staple` the pkg;
+  4. try to staple the `.plugin`. If that fails it only warns, and Gatekeeper checks the zip's
+     bundle online.
+- *Inspect package*:
+  - checks for a Developer ID Application authority, the team ID, a timestamp and the runtime
+    flag;
+  - requires `spctl --assess --type install` to report `source=Notarized Developer ID`;
+  - runs `stapler validate` on the pkg.
+- *Remove signing keychain* always runs at the end.
+- The environment should allow only `v*` tags (*Deployment branches and tags*), so no branch or
+  PR run can read the secrets.
+- The release notes switch to the "signed and notarized" wording when `MACOS_NOTARIZE` is `true`.
 
 ## Environment Configuration
 
@@ -574,9 +595,14 @@ refuses, ship the zip unstapled; Gatekeeper then checks the ticket online.
 **Repository settings (GitHub):**
 - Actions variable `RELEASE_FINAL_ALLOWED`: `true` lets a plain `vX.Y.Z` tag make a (draft,
   non-prerelease) release. Unset today.
+- Actions variable `MACOS_NOTARIZE`: `true` makes tag builds sign with Developer ID and notarize.
+  Unset today.
+- Environment `macos-signing`: holds the four signing secrets (*Signing and notarization*).
+  Restrict it to `v*` tags.
 
 **Secrets location:**
-- None in the repo, and no workflow reads a secret. Local obs-websocket credentials, if used
+- None in the repo. Only the macOS job of a signed tag build reads secrets, from the
+  `macos-signing` environment. Local obs-websocket credentials, if used
   for verification, and the notary profile / signing identities stay outside the repo and out of
   every committed file.
 

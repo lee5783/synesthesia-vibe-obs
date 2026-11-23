@@ -94,5 +94,8 @@ Job `release` (`R:92-172`) needs `validate` and `build`. It is the only job with
 - Attaching Linux after P4-008: download the `…-x86_64-linux-gnu` artifact in step 4.1, add the
   `.deb` to steps 4.2 and 4.4, and rewrite the Linux paragraph in 4.3. Update
   `plugin/README.md` (*Download*, *Linux*) in the same change.
-- Notarization would add signing inside the macOS build job, behind secrets that only tag runs
-  read. The placeholder names are in `docs/integrations.md`, *Signing and notarization*.
+- Notarization: `release.yaml` passes `sign: ${{ vars.MACOS_NOTARIZE == 'true' }}` to the build.
+  The macOS job then uses the `macos-signing` environment. It imports the certificate, builds
+  signed, then productsigns, notarizes and staples the pkg before *Archive*, and inspects for
+  `source=Notarized Developer ID`. Secrets and steps: `docs/integrations.md`, *Signing and
+  notarization*.

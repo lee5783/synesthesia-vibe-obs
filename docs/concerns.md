@@ -434,9 +434,11 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
   inside OBS are pending with the user. Phase 1 is not done until they report back.
 
 **Notarization (Phase 2 task 7):**
-- The release is ad-hoc signed and unnotarized. The commands are in `docs/integrations.md`; they
-  run once the user supplies Developer ID credentials out of band. A CI notarizing job would read
-  them from GitHub encrypted secrets (placeholder names in `docs/integrations.md`, C-018).
+- The release is ad-hoc signed and unnotarized until the user supplies Developer ID credentials.
+  The CI job is built: tag builds sign and notarize once the `macos-signing` environment holds
+  the secrets and `MACOS_NOTARIZE` is `true` (`docs/integrations.md`, *Signing and notarization*).
+  It has not run with real credentials yet. Whether `stapler` accepts a `.plugin` bundle is still
+  unverified; the job only warns if it does not.
 
 **Linux in OBS (P4-008):**
 - The Linux `.so` and `.deb` are built and checked in CI (exports, PIC, `ldd`, `dlopen`, package

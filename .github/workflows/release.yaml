@@ -88,6 +88,7 @@ jobs:
     uses: ./.github/workflows/build-plugin.yaml
     with:
       config: Release
+      sign: ${{ vars.MACOS_NOTARIZE == 'true' }}
 
   release:
     name: Create draft release
@@ -102,6 +103,7 @@ jobs:
       VERSION: ${{ needs.validate.outputs.version }}
       RELEASE_VERSION: ${{ needs.validate.outputs.release-version }}
       PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+      NOTARIZED: ${{ vars.MACOS_NOTARIZE == 'true' }}
     steps:
       - name: Download macOS packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
@@ -127,6 +129,11 @@ jobs:
         run: |
           repository_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
           asset_base="synesthesia-vibe-obs-${VERSION}"
+          if [[ "${NOTARIZED}" == "true" ]]; then
+            gatekeeper_note="The macOS plugin and installer are signed with a Developer ID and notarized by Apple. Install steps: [plugin/README.md](${repository_url}/blob/${TAG}/plugin/README.md)."
+          else
+            gatekeeper_note="The macOS plugin is ad-hoc signed and not notarized, so macOS Gatekeeper warns about it. Follow the install steps in [plugin/README.md](${repository_url}/blob/${TAG}/plugin/README.md)."
+          fi
           cat > "${RUNNER_TEMP}/release-notes.md" <<NOTES
           SynesthesiaVibe Visualizer ${RELEASE_VERSION}, a MilkDrop-preset music visualizer source for OBS Studio.
 
@@ -138,7 +145,7 @@ jobs:
 
           ## Before you install
 
-          The macOS plugin is ad-hoc signed and not notarized, so macOS Gatekeeper warns about it. Follow the install steps in [plugin/README.md](${repository_url}/blob/${TAG}/plugin/README.md).
+          ${gatekeeper_note}
 
           ## Linux
 
