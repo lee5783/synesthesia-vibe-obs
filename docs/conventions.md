@@ -10,7 +10,9 @@ unless asked) apply everywhere.
 
 **Files:**
 - kebab-case for every authored file: `obs-page.js`, `fetch-dist.sh`, `visualizer-source.cpp`,
-  `exported-symbols.txt`.
+  `exported-symbols.txt`, `build-plugin.yaml`. Workflows use the `.yaml` extension.
+- Per-OS variants of one module end in the OS: `opengl-loader-macos.cpp`, `opengl-loader-linux.cpp`,
+  behind one shared `opengl-loader.hpp`.
 
 **Functions:**
 - JavaScript: camelCase verbs (`readSettings`, `resolvePresets`, `createPlaylist`, `startAudio`).
@@ -21,12 +23,19 @@ unless asked) apply everywhere.
 **Variables:**
 - JavaScript: module constants `UPPER_SNAKE_CASE` at the top of the file (`DEFAULT_CYCLE_SECONDS`,
   `LOG_PREFIX`); locals camelCase.
-- C++: `constexpr` constants in snake_case inside the anonymous namespace (`visualizer_width`,
-  `setting_preset_path`); struct fields snake_case.
+- C++: `constexpr` constants in snake_case inside the anonymous namespace, grouped at the top of
+  the file: setting keys `setting_<key>` (`setting_preset_folder`), group ids `group_<name>`
+  (`group_audio`), hotkey names `hotkey_<action>`, limits and defaults (`max_output_size`,
+  `default_cycle_seconds`). Units go in the name (`audio_silence_after_ns`, `max_step_seconds`).
+  Struct fields snake_case.
+- Settings keys stored in scene collections: snake_case strings (`preset_folder`, `cycle_seconds`,
+  `audio_mix_track`, `render_scale`). Never rename one; saved collections would lose the value.
 - Bash: `readonly UPPER_SNAKE` constants at the top; lowercase locals declared with `local`.
 
 **Types:**
-- C++: snake_case structs and classes (`visualizer_source`, `gl_state_guard`), as libobs does.
+- C++: snake_case structs, classes and enums (`visualizer_source`, `gl_state_guard`,
+  `audio_ring`, `enum class preset_command`), as libobs does. A class with resources deletes its
+  copy constructor and copy assignment (`gl_state_guard`, `audio_ring`).
 
 ## Code Style
 
@@ -37,7 +46,10 @@ unless asked) apply everywhere.
 - C++: tabs (template style), opening brace of a function on its own line, braces omitted on
   single-statement `if`. `nullptr`, `static_cast`, `std::array`, `std::lock_guard`.
 - Bash: 4-space indent, `set -euo pipefail`, quote every expansion.
-- CMake: 2-space indent, multi-line argument lists as in `plugin/CMakeLists.txt`.
+- CMake: 2-space indent, multi-line argument lists as in `plugin/CMakeLists.txt`. OS-specific
+  settings sit in `if(OS_MACOS) … else()` blocks at the point in the file where they apply.
+- GitHub Actions YAML: 2-space indent, `shell: bash` and `working-directory: plugin` as job
+  defaults, a blank line between steps, `name:` on every step except bare `uses:` checkouts.
 
 **Linting:**
 - None. Compiler warnings: the plugin's own sources build with no warnings; the core emits about
@@ -45,14 +57,18 @@ unless asked) apply everywhere.
 
 ## Import Organization
 
-**C++ order** (`plugin/src/visualizer-source.cpp`):
-1. The file's own header (`"visualizer-source.hpp"`).
-2. OBS and project headers in angle brackets (`<obs-module.h>`, `<plugin-support.h>`,
+**C++ order** (`plugin/src/visualizer-source.cpp`, `plugin/src/opengl-loader-linux.cpp`):
+1. The file's own header (`"visualizer-source.hpp"`, `"opengl-loader.hpp"`), then other project
+   headers in quotes (`"audio-ring.hpp"`, `"opengl-loader.hpp"`).
+2. OBS and core headers in angle brackets, alphabetical (`<media-io/audio-resampler.h>`,
+   `<obs-module.h>`, `<obs-nix-platform.h>`, `<plugin-support.h>`,
    `<synesthesia-vibe/synesthesia-vibe.h>`, `<util/…>`).
-3. System headers (`<OpenGL/gl3.h>`, `<dlfcn.h>`).
-4. Standard library (`<array>`, `<cmath>`, `<mutex>`, `<string>`).
+3. System headers (`<EGL/egl.h>`, `<dlfcn.h>` in the loader files).
+4. Standard library, alphabetical (`<algorithm>`, `<array>`, `<atomic>`, `<mutex>`, `<string>`).
 
-Blank line between groups.
+Blank line between groups. Platform GL headers (`<OpenGL/gl3.h>`, `<GL/gl.h>`, `<GL/glext.h>`)
+are included only through `"opengl-loader.hpp"`, never directly. `plugin-main.cpp` includes its
+OBS headers first, then the project headers.
 
 **JavaScript:**
 - No static imports. The dist is loaded with `import(DIST_ENTRY)` inside `stage(...)` so a missing
@@ -69,7 +85,9 @@ Blank line between groups.
   `obs-page:` prefix). Non-fatal problems (bad parameter, unmatched name, missing audio) `warn`
   and fall back to a default; they never stop rendering.
 - C++: check every libobs/core return; log and degrade (`context` stays null, `video_render`
-  returns early). Use the ternary null fallback for C strings from libobs:
+  returns early; a failed prepare keeps the current preset; a missing audio source means silence
+  and a retry every second). Clamp every numeric setting on read (`std::clamp`) to the same range
+  the property declares. Use the ternary null fallback for C strings from libobs:
   `path ? path : ""`, `device_name ? device_name : "unavailable"`.
 - Bash: `die "message"` → `fetch-dist: message` on stderr, exit 1. Clean up with a `trap … EXIT`.
 
@@ -80,8 +98,56 @@ Blank line between groups.
 **Patterns:**
 - Page: every line starts with `obs-page:`. Log one summary line of what was understood
   (`obs-page: settings …`) and one line per preset change and audio decision.
-- Plugin: `LOG_INFO` for once-per-event lines (module load, source create, preset loaded),
-  `LOG_WARNING` for failures and the renderer refusal. Nothing per frame at `LOG_INFO`.
+- Plugin: `LOG_INFO` for once-per-event lines (module load, source create, preset prepared /
+  committed, auto-cycle request, hotkey, audio attach / detach, resize), `LOG_WARNING` for
+  failures and the renderer refusal. Nothing per frame at `LOG_INFO`. A condition that repeats
+  (audio source not found) logs once and sets a flag (`audio_wait_logged`). Timed steps log their
+  milliseconds (`preset committed: … (blend 2.7 s, 1.4 ms)`). Log messages are developer text and
+  stay in code, in English; they are not localised.
+
+## Strings and properties
+
+**Every user-visible string goes through `obs_module_text`:** the source name, property labels,
+list items, unit suffixes, hints and hotkey descriptions. The text lives in
+`plugin/data/locale/en-US.ini`; no UI text is hard-coded in C++.
+
+**Locale key conventions** (`plugin/data/locale/en-US.ini`):
+- A setting's label: PascalCase of the setting (`PresetFolder`, `CycleSeconds`, `RenderScale`).
+- Sub-items of a setting: `<Label>.<Item>` (`AudioSource.None`, `AudioSource.WholeMix`,
+  `AudioSource.Missing`, `RenderScale.Half`, `PresetFolder.Hint`, `Preset.First`).
+- Group titles: `Group.<Name>` (`Group.Presets`, `Group.Transitions`, `Group.Audio`,
+  `Group.Output`).
+- Unit suffixes: `Unit.<Unit>`, with the leading space quoted (`Unit.Seconds=" s"`,
+  `Unit.Pixels=" px"`). OBS's ini parser keeps the quoted space. Set them with
+  `obs_property_int_set_suffix` / `obs_property_float_set_suffix`.
+- Mix tracks: `MixTrack.Track<n>` for n = 1–6, listed from the `mix_track_labels` array.
+- Hotkeys: `Hotkey.<Action>` (`Hotkey.NextPreset`). The hotkey *name* (`SynesthesiaVibe.NextPreset`)
+  is a stable id saved in OBS's hotkey bindings, not a locale key; never rename it.
+
+**Property layout** (`visualizer_get_properties`):
+- Build each group as its own `obs_properties_t`, add it with
+  `obs_properties_add_group(…, OBS_GROUP_NORMAL, …)`. Group order: Presets, Transitions, Audio,
+  Output. New settings go into the group they belong to.
+- Every setting gets a default in `visualizer_get_defaults`, so `GetInputDefaultSettings` lists
+  all of them.
+- Prefer a list (`OBS_COMBO_TYPE_LIST`) over a free number when only a few values make sense
+  (render scale, mix track). For a string list whose stored value may be empty, add an item with
+  value `""` (the Preset list's "(first preset)"). OBS writes a list setting when the dialog opens
+  if the stored value matches no item, which marks the dialog dirty
+  (`.claude/common-issues/verification-tooling.md`).
+- Modified callbacks look properties up with `obs_properties_get` on the topmost properties; it
+  searches groups.
+
+## Concurrency
+
+- No `sv_*` call outside the render thread except `sv_prepare_preset` (worker),
+  `sv_prepared_preset_free` and `sv_set_preset_request_callback` in `create`
+  (`docs/architecture.md`, *Threading*).
+- State shared with the tick: `std::atomic`. State shared with the worker, hotkeys or `update`:
+  a field under `preset_mutex` or `audio_mutex`, copied out in a short `std::lock_guard` scope.
+  Never hold a plugin mutex across an `sv_*` call or a free; free handles after the lock scope.
+- Callbacks that run on OBS's audio threads write only the ring. They take no plugin mutex.
+- The tick never blocks: use `std::unique_lock` with `std::try_to_lock` there.
 
 ## Comments
 
@@ -97,12 +163,18 @@ Blank line between groups.
   //
   ```
 
-  `#` lines in CMake, shell, `.txt` and `.ini` files (OBS's locale parser treats `#` as a
-  comment); `<!-- -->` in HTML.
+  `#` lines in CMake, shell, YAML (`.github/workflows/*.yaml`), `.txt` and `.ini` files (OBS's
+  locale parser treats `#` as a comment); `<!-- -->` in HTML and XML (after the XML declaration).
+  `plugin/exported-symbols.map` uses one `/* … */` block with the header lines indented, laid out
+  like the XML header of `plugin/packaging/macos/distribution.in`; GNU ld's version-script parser
+  accepts C-style comments.
 - Vendored template files (`plugin/cmake/**`, `plugin/src/plugin-support.*`) get no header and keep
   their own comments.
 - Facts that would otherwise be a comment (why a guard exists, a maintenance trap) go into
   `docs/` or `.claude/common-issues/`.
+- Workflows follow the same rule. A `uses:` line names a full commit SHA with **no trailing
+  `# vX.Y.Z` comment** (C-019); the SHA-to-version map is in `docs/integrations.md`, *Pinned
+  actions*. `## …` lines inside a `run:` heredoc are Markdown text, not YAML comments.
 
 **JSDoc/TSDoc:**
 - Not used.
@@ -122,14 +194,37 @@ C++ callbacks cast `void *data` to `visualizer_source *` on the first line.
 - Page: none; `obs-page.js` runs `main()` on load.
 - Plugin: one registration function per source (`visualizer_source_register`, declared in
   `visualizer-source.hpp`); everything else lives in an anonymous namespace.
-- Binary exports: only the names in `plugin/exported-symbols.txt`. It must list exactly the
-  `obs_module_*` entry points the plugin defines. Listing an undefined one fails the link; a
-  wildcard re-exports libobs imports; forgetting a new optional one (`obs_module_post_load`,
-  `obs_module_name`, `obs_module_description`, `obs_module_author`) hides it with no warning.
+- Binary exports: only the `obs_module_*` names in **two files kept in sync**:
+  `plugin/exported-symbols.txt` (macOS, Xcode `EXPORTED_SYMBOLS_FILE`, names with a leading `_`)
+  and `plugin/exported-symbols.map` (Linux, GNU ld version script, names without `_`, under
+  `global:` with `local: *;`). Both must list exactly the entry points the plugin defines, in the
+  same order. Listing an undefined one fails the link; a wildcard re-exports libobs imports;
+  forgetting a new optional one (`obs_module_post_load`, `obs_module_name`,
+  `obs_module_description`, `obs_module_author`) hides it with no warning on that OS. CI diffs
+  each built binary against its file and fails on a mismatch.
 
 **GL calls into the core:**
 - Every `sv_*` call that touches GL goes through `with_core_gl_state([&] { … })`
   (`docs/architecture.md`).
+
+**Platform code:**
+- No `#if defined(__APPLE__)` in shared sources. A platform difference becomes a function
+  declared in a shared header and defined once per OS in `<name>-macos.cpp` / `<name>-linux.cpp`,
+  selected in `plugin/CMakeLists.txt` (`opengl_get_proc`, `opengl_log_platform`). A function with
+  nothing to do on one OS is defined empty there, so callers need no `#if`.
+
+## Workflows (`.github/workflows/`)
+
+- Every failing check prints `::error::<what and why>` and exits 1; group long output with
+  `::group::` / `::endgroup::`.
+- Values from the event or inputs (`github.ref_name`, `inputs.config`, `vars.*`) reach a script
+  only through `env:`, never as `${{ }}` inside `run:`.
+- Top-level `permissions: contents: read`; widen per job only where needed. Checkouts set
+  `persist-credentials: false`. No `secrets.*` until signing needs them.
+- Retries are bounded loops with growing waits and a final `::error::`, as in *Install build
+  dependencies*.
+- A step's script must pass `actionlint` with shellcheck and stay bash 3.2-compatible on the
+  macOS job.
 
 **Barrel Files:**
 - Not used.

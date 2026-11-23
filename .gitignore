@@ -11,5 +11,6 @@ browser-source/dist/
 plugin/.deps/
 plugin/build_*/
 plugin/cmake/.CMakeBuildNumber
+plugin/release/
 plugin/CMakeUserPresets.json
 .vscode/

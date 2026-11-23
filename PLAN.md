@@ -1,8 +1,16 @@
 # SynesthesiaVibe for OBS — plan
 
 Status: **Phase 1 built**, awaiting the user's loopback checklist (BlackHole on macOS, VB-Cable on
-Windows) before it is marked done. **Phase 2 spike done**; the Phase 2 tasks have not started. D1
-and D4 are locked; D5 (Pages) is open and skipped for now. Last updated 2026-11-23.
+Windows) before it is marked done. **Phase 2 (macOS) built, reviewed and checked in OBS**:
+tasks 1–6 are done, and its *Done when* checks passed on 2026-11-23 (the 1080p60 run, the
+integrated Done-when run and the OBS check of the "(first preset)" dialog fix). Task 7 (packaging)
+is partly done, with an ad-hoc signed `.plugin`, an unsigned `.pkg` and a zip. Notarization waits
+on Developer ID credentials and the pkg install into OBS is not verified yet, so Phase 2 is not
+closed. **Phase 4 (release and Linux) built and reviewed**: CI builds and
+checks macOS arm64 and Linux x86_64 on every PR, and a `v*` tag makes a draft prerelease with the
+macOS pkg, zip and checksums. Windows waits on Phase 3. Linux is experimental: built and checked
+in CI, not attached to releases until the user's Ubuntu X11/Wayland test. D1 and D4 are locked;
+D5 (Pages) is open and skipped for now. Last updated 2026-11-23.
 
 ## Goal
 
@@ -401,14 +409,14 @@ Xcode 27.2 and CMake 4.4.5.
 
 **Tasks after the spike**
 
-1. **CMake project** from the plugin template; links libobs and the core submodule.
-2. **Source lifecycle:**
+1. **CMake project** from the plugin template; links libobs and the core submodule. **Done.**
+2. **Source lifecycle:** **Done.**
    - `create` and `destroy` run inside `obs_enter_graphics()` and call `sv_init_gl` /
      `sv_create` / `sv_destroy`.
    - `video_tick` accumulates the frame delta; `video_render` passes it to `sv_render_frame`.
    - `video_render` renders, then draws the result with OBS's default effect.
    - `get_width` / `get_height` report the size from the source settings.
-3. **Audio:**
+3. **Audio:** **Done.**
    - A source-settings list lets the user pick any OBS audio source
      (`obs_source_add_audio_capture_callback`) or the whole mix (`audio_output_connect` on a
      chosen track).
@@ -419,17 +427,20 @@ Xcode 27.2 and CMake 4.4.5.
      atomics; it never calls `sv_*` (see the race follow-up above).
    - Callbacks are removed before the source is destroyed, and when the user picks a different
      audio source.
-4. **Presets:**
+4. **Presets:** **Done.**
    - Settings: a preset folder (path picker), the current preset, a random-order toggle, and the
      auto-cycle and transition times (`sv_set_transition_config`).
    - Loading happens off the render thread with `sv_prepare_preset`, then `sv_commit_preset`
      in `video_render`, under the graphics context.
 5. **Hotkeys:** next preset, previous preset, random preset, and pause auto-cycle
-   (`obs_hotkey_register_source`).
+   (`obs_hotkey_register_source`). **Done.**
 6. **Resolution:** a width × height setting (default 1920×1080) that calls `sv_resize` when it
-   changes; an optional render-scale setting to save GPU.
+   changes; an optional render-scale setting to save GPU. **Done.**
 7. **Packaging:** a signed and notarized `.plugin` bundle, plus install steps for
-   `~/Library/Application Support/obs-studio/plugins/`.
+   `~/Library/Application Support/obs-studio/plugins/`. **Partly done:** an ad-hoc signed,
+   arm64-only `.plugin`, an unsigned `.pkg` and a zip are built and inspected, and the install
+   steps are in `plugin/README.md`. Notarization is documented (`docs/integrations.md`) and waits
+   on Developer ID credentials. The pkg install into OBS is not verified yet.
 
 **Done when** on macOS (Apple Silicon, OBS 31+):
 
@@ -438,6 +449,22 @@ Xcode 27.2 and CMake 4.4.5.
 - Changing preset or transition settings takes effect without restarting OBS.
 - Removing the source, or quitting OBS, leaks nothing and crashes nothing.
 - Other sources in the same scene still draw correctly (the GL-state check).
+
+**Done-when state (2026-11-23):** met on the final integrated build (production build of
+`4c260b5`, OBS 33.0.3, Apple Silicon). Evidence is under the Phase 2 session's
+`develop/evidence/P2-011/`, `P2-012/` and `P2-010b/`.
+
+- **Passed:** the 1080p60 measurement in a dedicated profile (P2-012). `activeFps` was 60 in all
+  30 samples and `averageFrameRenderTime` was 3.75–8.60 ms (median 4.69 ms). 1 frame was skipped
+  in 17 446, and the slowest of 24 commits took 20.7 ms. Render scale reduction was not needed.
+- **Passed:** the Done-when run on the integrated build (P2-011). It covered the GL-state check,
+  both audio paths, live settings, removal and quit (`Number of memory leaks: 0` on every quit)
+  and a 300 s race stress test, with 0 GL error lines. A follow-up session added filters, a source
+  projector, a multiview and a program projector: all drew correctly, 0 skipped frames in 60 s.
+- **Passed:** the OBS check of the "(first preset)" fix (P2-010b). Opening the properties dialog
+  on a folder-only source no longer saves `preset`.
+- **Still open for Phase 2:** notarization (Developer ID credentials) and the pkg install into OBS
+  (TC-M04).
 
 ## Phase 3 — Native plugin, Windows (large, blocked)
 
@@ -462,10 +489,21 @@ copy is acceptable for the first release.
 ## Phase 4 — Release and Linux (medium)
 
 1. CI builds the plugin for each OS on a `v*` tag and attaches the artifacts to a GitHub Release.
+   **Done, prerelease-only.** `.github/workflows/` builds and checks macOS arm64 and Linux x86_64
+   on every PR. A `v*` tag creates a **draft** release with the macOS pkg, zip and
+   `SHA256SUMS.txt`. Only `-beta.<N>` / `-rc.<N>` tags pass until the repository variable
+   `RELEASE_FINAL_ALLOWED` is set, and a person publishes each draft. Windows is blocked with
+   Phase 3. Details: `docs/integrations.md`, *CI/CD & Deployment*.
 2. Linux (optional): OBS uses OpenGL/EGL there, so the macOS path should mostly carry over.
    Ship it only after a real test on Ubuntu with an X11 and a Wayland session.
-3. Publish on the OBS forums resource page.
+   **Built and checked in CI; experimental.** A `.deb` for Ubuntu 24.04 x86_64 (OBS 32.2.0+ from
+   the PPA) is a CI workflow artifact only, not attached to releases. It waits on the user's
+   Ubuntu X11 and Wayland test (P4-008). Flatpak OBS is unsupported.
+3. Publish on the OBS forums resource page. **Dropped for this run:** posting is the user's
+   action, and it is premature while Phase 2 is open.
 4. Run `codebase-mapper` to generate `docs/` and fill the routing table in `CLAUDE.md`.
+   **Closed, already satisfied:** all eight `docs/` pages and the routing table exist, and the
+   Phase 4 doc sync brought them up to date.
 
 ## Risks
 
@@ -477,7 +515,7 @@ copy is acceptable for the first release.
 | Audio thread → render thread handoff | Crackle-free audio but a desynced or frozen visualizer, or a data race | Single-producer/single-consumer ring buffer; never call `sv_*` from the audio callback. Not exercised by the spike, which pushed a synthetic tone from `video_tick`; that also races `video_render` on the same `sv_context` (task 3 moves every `sv_*` call into `video_render`) |
 | OBS on Metal (macOS) or a non-GL renderer | The plugin can't render | Done in the spike: the renderer check at load refuses anything but OpenGL with a log warning and registers no source. Apple's GL-on-Metal driver passes. The real Metal renderer was not exercised, and there is no in-app notice yet |
 | Presets that write alpha 0 (swarm) | The visualizer shows transparent in screenshots, filters and nested scenes | Found by the spike. Draw with an opaque technique or force alpha to 1 (Phase 2) |
-| Duplicate glad symbols on Linux | Wrong GL entry points, crash at load | The plugin's link exports only its `obs_module_*` entry points: on macOS through `plugin/exported-symbols.txt` (done and loaded in OBS 33.0.3; it also stops cross-image weak-symbol coalescing), and on Linux, when Phase 4 gets there, through a version script or `--exclude-libs,ALL` |
+| Duplicate glad symbols on Linux | Wrong GL entry points, crash at load | Mitigated. The plugin's link exports only its `obs_module_*` entry points: on macOS through `plugin/exported-symbols.txt` (done and loaded in OBS 33.0.3; it also stops cross-image weak-symbol coalescing), and on Linux through the version script `plugin/exported-symbols.map` plus `-Wl,--exclude-libs,ALL` (Phase 4). CI checks every Linux build: only the 7 names are exported, with no glad, `sv_`, projectM or C++ symbols. Not yet loaded in OBS on Linux (P4-008) |
 | Slow preset compiles stall OBS | Dropped frames on a live stream | `sv_prepare_preset` off-thread, commit in `video_render` under the graphics context. The spike still loads with a synchronous `sv_load_preset` inside `video_render` |
 | GPL vs the MIT core and vendored code | Can't publish | D1 is settled (GPL-2.0-or-later); check the core's `NOTICE` for vendored licenses |
 | WebGL 2 / getUserMedia inside OBS's embedded Chromium | Phase 1 page is blank or silent | Test early on the oldest supported OBS; document the launch flag |
@@ -525,6 +563,18 @@ once filed. The draft text for each is inline below.
    the `sv_*` API, not glad, projectM-Eval, ns-eel2, stb or C++ weak definitions, and don't need
    an export list or version script. At `v0.7.0` the library exports 2,522 `glad_gl*` symbols and
    the header has no visibility macro."
+5. A host-settable folder for random textures. Found in Phase 2: the core's random-texture picker
+   scans only `<resource_path>/textures`, and the plugin's release ships no presets or textures,
+   so presets that ask for a random texture get none. The plugin documents the limit in
+   `plugin/README.md`. Not blocking. Drafted, not filed: "Let the host
+   choose where random textures come from:
+   - make the random-texture picker also scan `texture_search_path` (or add an `sv_config` field
+     for a random-texture folder) instead of only `<resource_path>/textures`;
+   - allow changing that folder after `sv_create` (for example `sv_set_texture_search_path`), so a
+     host can follow the user's preset folder without re-creating the context;
+   - keep the current behaviour when the host sets nothing."
+   Asks #4 and #6 (per-context PCM buffer, public reset of stale audio) and #7 (optimisation
+   flags per target; most of the core builds at `-O0`) are drafted in `docs/concerns.md`.
 
 ## Evidence and testing
 

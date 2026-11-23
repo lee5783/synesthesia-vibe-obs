@@ -8,6 +8,7 @@
 #include <obs-module.h>
 #include <plugin-support.h>
 
+#include "opengl-loader.hpp"
 #include "visualizer-source.hpp"
 
 OBS_DECLARE_MODULE()
@@ -41,6 +42,7 @@ bool obs_module_load(void)
 {
 	if (!renderer_is_opengl())
 		return true;
+	opengl_log_platform();
 	visualizer_source_register();
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 	return true;

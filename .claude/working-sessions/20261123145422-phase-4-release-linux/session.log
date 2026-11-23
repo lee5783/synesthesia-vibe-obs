@@ -1,0 +1,53 @@
+2026-11-23T07:54:22Z  orchestrator  session start: start phase 4 on top of this (branch feature/phase-4-release-linux off feature/plugin-phase-2-macos, PR #2 unmerged)
+2026-11-23T07:54:43Z  orchestrator  Gate 0: CodeGraph reachable (MCP codegraph_explore answered this turn). Skipped: intake (no ticket), ui-ux (no design), standalone impact analysis (planner covers Linux GL-loader/CMake impact via CodeGraph). Delegating planner
+2026-11-23T07:55:10Z  planner  start: planning Phase 4 (release + Linux) items 1-4
+2026-11-23T08:04:59Z  planner  done: wrote plan/input-plan.md + 4 output-plan-*.md (12 tasks P4-001..P4-012, 29 concerns, 12 marked G1)
+2026-11-23T08:05:04Z  planner  correction: 10 concerns are marked G1 (C-001,002,003,006,008,016,017,020,021,024), not 12
+2026-11-23T08:08:29Z  orchestrator  Gate 1 resolved with user (see plan/output-plan-gate-1-decisions.md). P4-009 dropped, P4-010 closed, P4-008 user-owned. Starting develop: P4-001 → P4-007
+2026-11-23T08:09:01Z  developer  start: reading role file, delegated rules and plan for P4-001..P4-006
+2026-11-23T08:12:52Z  developer  task START P4-001 (input-dev.md written; capturing macOS before-baseline first)
+2026-11-23T08:31:26Z  developer  P4-002..P4-006 implemented sequentially after P4-001 in this session; macOS evidence and actionlint done; writing handoffs
+2026-11-23T08:31:26Z  developer  task END P4-001 (output-P4-001.md written)
+2026-11-23T08:31:56Z  developer  task END P4-002 (output-P4-002.md written)
+2026-11-23T08:32:16Z  developer  task END P4-003 (output-P4-003.md written)
+2026-11-23T08:32:38Z  developer  task END P4-004 (output-P4-004.md written)
+2026-11-23T08:32:58Z  developer  task END P4-005 (output-P4-005.md written; Linux unverified until CI)
+2026-11-23T08:33:20Z  developer  task END P4-006 (output-P4-006.md written; ready to push)
+2026-11-23T08:42:38Z  orchestrator  pushed f191650, opened draft PR #3 (base feature/plugin-phase-2-macos). CI run 45139712419: macOS success; Linux failed at vcpkg pthread-stubs (autotools missing, C-014). Sent back to developer
+2026-11-23T08:42:45Z  developer  CI iteration 1: P4-005 Linux vcpkg pthread-stubs needs autotools; fixing forward
+2026-11-23T08:44:24Z  developer  CI iteration 1 fix done: autotools/X-chain apt packages + per-run vcpkg cache keys; actionlint clean; ready to push
+2026-11-23T08:53:44Z  orchestrator  CI run 45141112632 (995831c): macOS success; Linux core+plugin compile OK under GCC 13, link fails (NSEEL_HOSTSTUB_* undefined from libprojectM_ns-eel2.a, archive order). Sent back to developer
+2026-11-23T08:54:04Z  developer  CI iteration 2: Linux link NSEEL_HOSTSTUB_* undefined; investigating
+2026-11-23T08:56:10Z  developer  CI iteration 2 fix done: LINK_GROUP RESCAN for core/ns-eel2/eval cycle; macOS rebuild ok; ready to push
+2026-11-23T09:00:33Z  orchestrator  CI run 45142685335 (64c5010): macOS success; Linux failed pre-build at libobs version step (obs-config.h not at /usr/include/obs). Sent back to developer
+2026-11-23T09:00:46Z  developer  CI iteration 3: Record libobs version step cannot find obs-config.h; comparing runs 2 and 3
+2026-11-23T09:01:50Z  developer  CI iteration 3 fix done: PPA 503 fallback to distro OBS guarded (retry, --error-on=any, origin checks, header via dpkg-query); actionlint clean; ready to push
+2026-11-23T09:06:55Z  orchestrator  CI run 45143470392 (61107e0): macOS success; Linux apt-get update retry recovered, but PPA .deb download 503 during install. Sent back to developer
+2026-11-23T09:07:04Z  developer  CI iteration 4: PPA .deb download 503; adding apt Acquire::Retries and bounded install retry
+2026-11-23T09:07:35Z  developer  CI iteration 4 fix done: Acquire::Retries 5 + 3-attempt install loop; actionlint clean; ready to push
+2026-11-23T09:23:56Z  orchestrator  CI run 45144284376 (ec49eeb): macOS + Linux success; Linux checks ran (7 exports, NEEDED libobs.so.30/libOpenGL/libEGL, dlopen RTLD_NOW ok, .deb inspected, PPA OBS 32.2.0). Pushing throwaway tag v0.1.0-beta.0 to test release.yaml (Gate 1 C-001)
+2026-11-23T09:24:51Z  developer  task START P4-007 (plugin/README.md Download + Linux sections); checking run 5 vcpkg cache skip
+2026-11-23T09:27:25Z  developer  task END P4-007 (output-P4-007.md written; ready to push)
+2026-11-23T09:36:37Z  orchestrator  Release run 45146667649 (tag v0.1.0-beta.0 @ ec49eeb): validate/macOS/Linux/draft-release all success; draft prerelease had pkg+zip+SHA256SUMS (no .deb), checksums verified locally; draft release and tag deleted (C-001). P4-007 pushed as dca171a. Develop complete; Gate 2 code-reviewer next
+2026-11-23T09:37:00Z  code-reviewer  P4-011 Gate 2: start PR-style review of feature/plugin-phase-2-macos...feature/phase-4-release-linux
+2026-11-23T09:44:35Z  code-reviewer  P4-011 Gate 2 done: Approve, 0 blocking, 8 minor + 1 low security hardening; review/input-code-review.md + review/output-review-findings.md written
+2026-11-23T09:45:17Z  orchestrator  Gate 2: review Approve, no blockers. Sent REVIEW-FIX (m1 checksum line, m2 evidence CI results, m3 README vcpkg pin/guard wording, S1 buildspec validation) to developer; m4-m7 skipped as optional
+2026-11-23T09:45:36Z  developer  task START REVIEW-FIX (m1, m2, m3, S1 from review/output-review-findings.md)
+2026-11-23T09:47:18Z  developer  task END REVIEW-FIX (m1 m2 m3 S1 done; actionlint clean; ready to push)
+2026-11-23T09:48:28Z  document-writer  start P4-012 doc sync (Gate 3)
+2026-11-23T09:57:07Z  orchestrator  CI run 45150243042 (f57bf4e, review fixes): macOS + Linux success
+2026-11-23T10:00:34Z  orchestrator  Gate 3 docs pass accepted (docs/ 7 pages, common-issues, how-x-works release-pipeline + citation shifts, PLAN.md status/Phase 4/risk/ask #7 pointer, CLAUDE.md Setup Linux line); orchestrator hygiene scan clean. Gate 4 asked
+2026-11-23T10:06:57Z  orchestrator  Gate 4: user chose template + update PR #3 (stays draft); docs/README.md index refresh approved and done; output-pull-request.md written; committing, pushing, updating PR #3 body
+2026-11-23T10:07:08Z  orchestrator  committed 4c260b5, pushed, PR #3 body/title updated (draft, base feature/plugin-phase-2-macos). Run complete.
+2026-11-23T11:35:38Z  orchestrator  user reopened OBS: start the deferred OBS retest (TC-M03, Phase 2 checks)
+2026-11-23T11:43:00Z  orchestrator  retest: user authorised graceful OBS quit/relaunch; quitting OBS to dev-install
+2026-11-23T11:53:11Z  orchestrator  retest: P2-012 1080p60 in separate profile synesthesia-1080p60 (C-001)
+2026-11-23T12:00:17Z  orchestrator  retest: session A passed (leaks 0); installed scratch audio-debug build for session B (source restored from git)
+2026-11-23T12:02:37Z  orchestrator  retest: P2-010b dialog check - opening properties dialog on RT Viz Dialog (user must close it)
+2026-11-23T12:15:47Z  orchestrator  retest: all OBS checks passed (TC-M03, P2-011, P2-012, P2-010b); evidence written; delegating doc sync to document-writer
+2026-11-23T12:15:57Z  document-writer  start OBS retest doc sync (packet input-docs-obs-retest.md)
+2026-11-23T12:18:21Z  document-writer  done: synced docs/ and .claude caches for OBS retest; report output-doc-sync-obs-retest.md
+2026-11-23T12:20:28Z  orchestrator  retest: user approved PLAN.md text (applied) and a projector/multiview/filter run; reinstalling production build
+2026-11-23T12:55:09Z  orchestrator  retest: projectors left open behind other windows; user chose cleanup then quit OBS to close them
+2026-11-23T12:56:10Z  orchestrator  retest: session C (projectors/multiview/filters) passed, leaks 0; docs, PLAN.md and PR body updated; committing
+2026-11-23T13:05:18Z  orchestrator  user: close PR #2, use PR #3 for Phase 2 + 4; combined PR body, retarget #3 to master
