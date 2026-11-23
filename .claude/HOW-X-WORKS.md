@@ -11,7 +11,8 @@ write-up** here so the next lookup is instant instead of re-traced through the c
 
 | Flow | Read |
 |---|---|
-| `<example-flow>` (delete once you have real entries) | [`how-x-works/_example-flow.md`](how-x-works/_example-flow.md) |
+| Plugin render frame (`video_tick` → `video_render` → GL guard → `sv_render_frame` → flipped sprite) | [`how-x-works/plugin-render-frame.md`](how-x-works/plugin-render-frame.md) |
+| Browser Source startup (URL settings → dist import → playlist → cycling → audio) | [`how-x-works/browser-source-startup.md`](how-x-works/browser-source-startup.md) |
 
 ## Adding/updating an entry
 

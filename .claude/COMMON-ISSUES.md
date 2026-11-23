@@ -9,7 +9,12 @@ touching, via `Read`/`Grep`, same as any other file.
 
 | Area | Read |
 |---|---|
-| `<example-area>` (delete once you have real entries) | [`common-issues/_example-area.md`](common-issues/_example-area.md) |
+| Plugin build and core submodule (template build-number bug, `git submodule status` tag label) | [`common-issues/plugin-build.md`](common-issues/plugin-build.md) |
+| Plugin runtime in OBS (GL state cache desync, `gl_state_guard`) | [`common-issues/plugin-runtime.md`](common-issues/plugin-runtime.md) |
+| Browser Source in OBS (macOS mic permission → `NotFoundError`, first-run blank source) | [`common-issues/browser-source.md`](common-issues/browser-source.md) |
+| Verification tooling (Chrome fake audio silent, `osascript` quit -128) | [`common-issues/verification-tooling.md`](common-issues/verification-tooling.md) |
+
+Tech debt and planned fixes that are not quick gotchas live in `docs/concerns.md`.
 
 ## Adding a new entry
 
