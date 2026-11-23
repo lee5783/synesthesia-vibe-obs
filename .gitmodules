@@ -1,0 +1,3 @@
+[submodule "external/synesthesia-vibe"]
+	path = external/synesthesia-vibe
+	url = https://github.com/lee5783/synesthesia-vibe.git

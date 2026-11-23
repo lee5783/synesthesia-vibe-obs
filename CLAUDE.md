@@ -72,8 +72,8 @@ structure instead of something re-derived by reading files every time.
 question>"` from the shell. Reach for it before grep/find or reading files when locating or
 understanding code; if it's configured but unreachable, say so explicitly rather than silently
 falling back to a grep sweep. `.codegraph/` is local and git-ignored: run `codegraph init .` once
-after cloning. Until the repo holds C/C++ or JS source, the index is empty and step 1 of Rule 2
-answers nothing; go straight to step 2.
+after cloning. The index covers the plugin C++ (`plugin/src/`), the Browser Source JS
+(`browser-source/obs-page.js`) and the core submodule's sources.
 
 ## The project
 
@@ -111,15 +111,16 @@ other file.
 | Third-party services, auth, analytics, CI/CD, env/build config | `docs/integrations.md` |
 | Language/framework/dependency versions | `docs/stack.md` |
 | Known tech debt, bugs, fragile areas, security notes | `docs/concerns.md` |
+| Locked decisions (D1 licence, D4 core build) and their consequences | `docs/decisions.md` |
 | Phases, open decisions, risks, upstream asks | `PLAN.md` |
 | **Known issues (check before fixing)** | `.claude/COMMON-ISSUES.md` (index) → `.claude/common-issues/<area>.md` |
 | **What does term/jargon X mean?** | `.claude/DICTIONARY.md` (index) → `.claude/dictionary/<term>.md` — check first, save new findings here |
 | **How does flow X work end-to-end?** | `.claude/HOW-X-WORKS.md` (index) → `.claude/how-x-works/<flow>.md` — check first, save new write-ups here |
 | **Repo-specific durable facts / workarounds** | `.claude/MEMORY.md` (index) → `.claude/memory/<name>.md` |
 
-The `docs/` pages do not exist yet: the repo has no source. Run `codebase-mapper` once Phase 1 or
-Phase 2 code lands, then keep this table and `docs/README.md` listing exactly the pages that
-exist. Add a `docs/decisions.md` when the first `PLAN.md` decision is locked. A doc-routing
+All eight `docs/` pages above exist and describe `browser-source/` and the `plugin/` spike. Keep
+this table and `docs/README.md` listing exactly the pages that exist, and add a section to
+`docs/decisions.md` whenever a `PLAN.md` decision is locked. A doc-routing
 table beats one giant `ARCHITECTURE.md`: a single page either gets skipped (too long to read every
 session) or gets stale in patches. One focused page per question keeps each page short enough to
 actually re-read, and cheap enough to regenerate when it drifts. The `codebase-mapper` skill
@@ -127,13 +128,18 @@ generates the first seven pages.
 
 ## Setup
 
-Nothing builds yet. The planned setup (`PLAN.md`, *Build and tooling*):
+Run from the repository root. Details, install steps and logs: `docs/integrations.md`.
 
-- `git submodule update --init --recursive` — fetches the pinned core.
-- Browser Source: serve `browser-source/` with any static HTTP server, e.g.
-  `python3 -m http.server 8080 --directory browser-source`.
-- Plugin: CMake ≥ 3.28 presets per OS, following the official `obs-plugintemplate` layout;
-  the exact commands go into `docs/integrations.md` when Phase 2 adds them.
+- `git submodule update --init --recursive` — fetches the pinned core (the plugin needs it; the
+  Browser Source does not).
+- Browser Source: `browser-source/fetch-dist.sh` (downloads the pinned web dist and presets into
+  the git-ignored `browser-source/dist/`), then
+  `python3 -m http.server 8080 --bind 127.0.0.1 --directory browser-source`. OBS setup:
+  `browser-source/README.md`.
+- Plugin (macOS, Apple Silicon only for now): needs Xcode, CMake ≥ 3.28, `ninja` on the `PATH` and
+  `VCPKG_ROOT` pointing at a vcpkg checkout. Then
+  `cd plugin && cmake --preset macos-arm64 && cmake --build --preset macos-arm64`. The first
+  configure downloads and builds libobs (about 3 minutes).
 
 ## Quick facts worth knowing up front
 

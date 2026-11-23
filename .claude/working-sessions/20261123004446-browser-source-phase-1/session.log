@@ -1,0 +1,93 @@
+2026-11-22T17:44:46Z  orchestrator  session start: work on this @PLAN.md (scoped to Phase 1 — Browser Source)
+2026-11-22T17:45:16Z  planner  start: planning PLAN.md Phase 1 Browser Source
+2026-11-22T17:52:05Z  planner  done: wrote input-plan.md + 4 output-plan-*.md (10 tasks, 35 test cases, 20 concerns)
+2026-11-22T17:53:01Z  orchestrator  plan received (BS-001..BS-010, 20 concerns); verified C-001 preset-hosting restriction in core build-web-sample.sh:49 + NOTICE; Gate 1 opened with user
+2026-11-22T18:00:08Z  orchestrator  Gate 1 resolved (see plan/output-plan-gate-1-decisions.md): scope Phase 1 + Phase 2 spike, Pages skipped, D1 locked GPL-2.0-or-later + LICENSE; planner revising plan; developer started BS-001
+2026-11-22T18:00:09Z  developer  BS-001 delegation received; reading rules and plan inputs
+2026-11-22T18:00:11Z  planner  revision start: Gate 1 decisions (drop Pages, add LIC-001, add SPK tasks)
+2026-11-22T18:00:59Z  developer  BS-001 START: implementing browser-source/fetch-dist.sh
+2026-11-22T18:03:23Z  developer  BS-001 END: fetch-dist.sh done; output-BS-001.md and evidence/BS-001 written
+2026-11-22T18:03:53Z  orchestrator  BS-001 accepted (re-ran fetch-dist.sh: exit 0, 15 files, header ok, dist ignored); holding BS-002 until planner revision lands
+2026-11-22T18:09:03Z  planner  revision done: BS-006 removed, LIC-001/002 + SPK-001..010 added, C-001..020 resolved, C-021 + S-001..014 pending second Gate 1
+2026-11-22T18:09:57Z  orchestrator  plan revision received (BS/LIC/SPK tasks, C-021 + S-001..S-014); developer started BS-002; second Gate 1 (spike) opened with user
+2026-11-22T18:10:02Z  developer  BS-002 developer start: reading role file, plan docs and BS-001 output
+2026-11-22T18:10:55Z  developer  BS-002 START: extend fetch-dist.sh with tarball resources + manifest
+2026-11-22T18:14:36Z  developer  BS-002 END: output-BS-002.md written; fresh run 10 presets/23 textures, failure paths keep dist, shellcheck clean
+2026-11-22T18:15:52Z  orchestrator  second Gate 1 resolved (plan/output-plan-gate-1-spike-decisions.md); BS-002 accepted (10 presets, 23 textures, manifest valid, shellcheck clean); started BS-003 and LIC-001; SPK-001 queued after LIC-001 (both touch PLAN.md)
+2026-11-22T18:15:53Z  developer  BS-003 developer started; reading role file, plan artifacts and rules
+2026-11-22T18:15:53Z  developer  LIC-001 delegation received; reading developer rules and delegated paths
+2026-11-22T18:16:14Z  developer  LIC-001 START
+2026-11-22T18:17:04Z  developer  BS-003 START (input-dev.md BS-003 section written)
+2026-11-22T18:20:44Z  developer  BS-003 END (output-BS-003.md written; evidence in develop/evidence/BS-003)
+2026-11-22T18:21:28Z  orchestrator  BS-003 accepted (screenshot verified by orchestrator: preset renders full-frame); core info lines on console.error -> accept + document in BS-007 README troubleshooting; started BS-004
+2026-11-22T18:21:29Z  developer  BS-004 developer started; reading delegated paths
+2026-11-22T18:22:27Z  developer  BS-004 START: URL settings + preset cycling in browser-source/obs-page.js
+2026-11-22T18:25:39Z  developer  LIC-001 END — LICENSE (gnu.org gpl-2.0.txt, sha256 edaef632...33f6) + PLAN.md D1 locked; output-LIC-001.md written; gnu.org re-fetch timed out, cross-checked vs GNU package copies
+2026-11-22T18:26:07Z  orchestrator  LIC-001 accepted (PLAN.md D1 locked, LICENSE GPL-2.0 verified by sha vs 2 GNU package copies; gnu.org re-check pending network); started SPK-001
+2026-11-22T18:26:12Z  developer  SPK-001 developer started; reading role file and delegated paths
+2026-11-22T18:26:38Z  developer  SPK-001 START: git submodule add core at external/synesthesia-vibe, pin v0.7.0
+2026-11-22T18:27:28Z  developer  SPK-001 END: submodule external/synesthesia-vibe at v0.7.0 (887628f) staged with .gitmodules; no nested submodules; PLAN.md answer added; output-SPK-001.md written
+2026-11-22T18:28:00Z  orchestrator  SPK-001 accepted (submodule at 887628f = v0.7.0, staged only); started SPK-002
+2026-11-22T18:28:04Z  developer  SPK-002 developer started; reading delegated paths
+2026-11-22T18:28:20Z  developer  SPK-002 task START
+2026-11-22T18:28:30Z  developer  BS-004 END (output-BS-004.md written; evidence in develop/evidence/BS-004; note: engine interval = cycle+blend)
+2026-11-22T18:30:56Z  orchestrator  BS-004 accepted (cycle screenshots verified: fractopia -> swarm); user kept engine cycle semantics (cycle+blend), recorded in gate-1 decisions; started BS-005
+2026-11-22T18:31:01Z  developer  BS-005 developer started; reading delegated paths
+2026-11-22T18:31:48Z  developer  BS-005 task START
+2026-11-22T18:34:01Z  developer  SPK-002 task END (Q1: no; fallback separate configure+install works; output-SPK-002.md written)
+2026-11-22T18:34:52Z  orchestrator  SPK-002 accepted (Q1=no; separate build+install works, arm64 lib verified, submodule clean, upstream ask #1 drafted not filed); started SPK-003 (will restart OBS gracefully to load plugin)
+2026-11-22T18:34:57Z  developer  SPK-003 delegation received; reading rules and plan
+2026-11-22T18:35:19Z  developer  SPK-003 task START
+2026-11-22T18:42:19Z  developer  BS-005 END (output-BS-005.md written; evidence in develop/evidence/BS-005; autoplay handled by deferring fromMicrophone to first gesture since the wrapper awaits resume() privately)
+2026-11-22T18:43:11Z  orchestrator  BS-005 accepted (screenshots verified: audio reactive vs silent; autoplay deferred-start design accepted — same user-visible behaviour as C-008); started BS-007; SPK-003 still building
+2026-11-22T18:43:15Z  developer  BS-007 delegation received; reading rules and plan inputs
+2026-11-22T18:45:32Z  developer  BS-007 task START
+2026-11-22T18:49:01Z  developer  SPK-003 task END (plugin builds arm64, loads in OBS 33.0.3, source listed; websocket creds failed auth, GUI fallback used)
+2026-11-22T18:49:54Z  orchestrator  SPK-003 build/load accepted (plugin loads in OBS 33.0.3, source listed). DEVIATION: obs-websocket auth failed (4009; orchestrator reproduced with stored creds), developer fell back to macOS accessibility GUI automation, outside S-010 approval; raised with user before SPK-004
+2026-11-22T18:50:46Z  developer  BS-007 END (output-BS-007.md written; browser-source/README.md new; evidence in develop/evidence/BS-007; OBS not run, BS-008 to confirm OBS-side steps)
+2026-11-23T00:12:10Z  orchestrator  user: ws auth off (verified identified OK), GUI automation disallowed; BS-007 accepted (README; --bind 127.0.0.1 added to server cmd — CLAUDE.md Setup sync deferred to docs pass w/ user approval); started SPK-004
+2026-11-23T00:12:16Z  developer  SPK-004 delegation received; reading rules and plan inputs
+2026-11-23T00:13:08Z  developer  SPK-004 task START (input-dev.md SPK-004 section appended)
+2026-11-23T00:19:54Z  developer  SPK-004 task END (renderer check in obs_module_load; OpenGL pass verified live via websocket; refusal branch verified with scratch env override, renderer setting untouched; PLAN.md answer + template SHA; output-SPK-004.md written)
+2026-11-23T00:20:35Z  orchestrator  SPK-004 accepted (OpenGL pass path live in OBS; non-GL path via scratch env override; template SHA added to PLAN.md); started SPK-005
+2026-11-23T00:20:40Z  developer  SPK-005 developer invoked; reading delegated paths
+2026-11-23T00:21:33Z  developer  SPK-005 START
+2026-11-23T00:34:15Z  developer  SPK-005 END (output-SPK-005.md written; rendering works with GL_CURRENT_PROGRAM restore + GS_FLIP_V)
+2026-11-23T00:35:09Z  orchestrator  SPK-005 accepted (screenshot verified: Fractopia renders in OBS beside image/colour/text; GL_CURRENT_PROGRAM guard + GS_FLIP_V; ~4-7 ms/frame at 30fps, 1080p60 unmeasured — user profile is 1080x1920@30); started SPK-006
+2026-11-23T00:35:13Z  developer  SPK-006 developer start: reading rules and delegated paths
+2026-11-23T00:37:24Z  developer  SPK-006 task START: GL-state audit instrumentation
+2026-11-23T00:55:58Z  developer  SPK-006 task END: save/restore chosen; gl_state_guard in place, diff logging removed; output-SPK-006.md written
+2026-11-23T00:57:00Z  orchestrator  SPK-006 accepted (save/restore gl_state_guard, 0 GL errors over 4-min run, ~20us/guard; diff logging removed — verified); new finding: swarm preset alpha 0 -> opaque draw needed in Phase 2. Started SPK-007 (no OBS) and BS-008 (OBS) in parallel
+2026-11-23T00:57:05Z  developer  BS-008 delegation received; reading role file and delegated paths
+2026-11-23T00:57:05Z  developer  SPK-007 delegation received; reading rules and inputs
+2026-11-23T00:57:41Z  developer  BS-008 START (input-dev.md appended; OBS websocket check of the Browser Source page)
+2026-11-23T00:58:59Z  developer  SPK-007 START: glad isolation check + export only module entry points
+2026-11-23T01:03:59Z  developer  SPK-007 END: exports reduced to 7 obs_module_* entry points; glad isolated on macOS; ask #3 not needed; OBS load check pending (after BS-008); output-SPK-007.md written
+2026-11-23T01:04:37Z  orchestrator  SPK-007 accepted (nm -gU shows only 7 obs_module_* exports — verified; upstream ask #3 downgraded to optional); OBS load check of new build deferred to SPK-008 after BS-008 releases OBS
+2026-11-23T01:13:05Z  developer  BS-008 END (output-BS-008.md written; OBS restored to Untitled, plain launch; mic permission for OBS denied -> user action needed)
+2026-11-23T01:13:51Z  orchestrator  BS-008 accepted as best-effort (screenshot verified: page renders in OBS; cycling 12s, autoplay running, hidden pauses; audio reaction untested — macOS mic permission for OBS denied, user action; checklist written). Started SPK-008 (load check of SPK-007 build, consolidation, S-012 cleanup)
+2026-11-23T01:13:56Z  developer  SPK-008 developer start: reading delegated paths
+2026-11-23T01:14:27Z  developer  SPK-008 task START (input-dev.md SPK-008 section appended; step a: OBS load check of SPK-007 build)
+2026-11-23T01:20:14Z  developer  SPK-008 load check passed (Fractopia animating on air, gl_errors 0, 0 GL error lines); PLAN.md consolidated; starting S-012 cleanup
+2026-11-23T01:22:07Z  developer  SPK-008 task END (output-SPK-008.md written; OBS load check passed; PLAN.md consolidated, D4 locked, asks drafted not filed; plugin bundle removed, OBS relaunched clean)
+2026-11-23T01:23:18Z  orchestrator  SPK-008 accepted (load check pass, PLAN.md consolidated, plugin uninstalled, OBS clean). Note: developer set D4 Locked on own judgement — asking user. Gate 2: code-reviewer started
+2026-11-23T01:23:22Z  code-reviewer  Gate 2 review started: BS-001..008, LIC-001, SPK-001..008
+2026-11-23T01:26:00Z  orchestrator  user confirmed D4 Locked (recorded in spike decisions)
+2026-11-23T01:32:57Z  code-reviewer  Gate 2 review done: Request changes (2 blockers: SPK-006 abs path, S-003 debug log line; 4 should-fix; 13 nits); output-review-findings.md written
+2026-11-23T01:34:13Z  orchestrator  Gate 2 review received: request changes (B1 private path, B2 LOG_INFO instrumentation; S1 race in video_tick, S2 stale core, S3 arm64-only unguarded, S4 PLAN link). Orchestrator grep: no password in repo/session files; redacted the quoted private path in review/output-review-findings.md:52. Developer fix pass started
+2026-11-23T01:34:18Z  developer  REVIEW-FIX: start review fix pass (B1,B2,S4,S1 wording,S2,nits)
+2026-11-23T01:36:38Z  developer  REVIEW-FIX task START (B1,B2,S4,S1 PLAN wording,S2,N1,N3,N4) — rules/skills read, edits applied, build verified
+2026-11-23T01:37:32Z  developer  REVIEW-FIX task END — output-REVIEW-FIX.md written; build green, 0 warnings, 7 exports, hygiene grep clean
+2026-11-23T01:38:24Z  orchestrator  REVIEW-FIX received (7 items, build clean, 7 exports). Item 7 alters GL guard -> OBS runtime re-check started; reviewer round 2 started in parallel on frozen code
+2026-11-23T01:38:28Z  code-reviewer  Gate 2 round 2 start: verifying REVIEW-FIX against round-1 findings
+2026-11-23T01:38:28Z  developer  REVIEW-RECHECK: start — OBS runtime re-check of review fixes (S-012)
+2026-11-23T01:38:57Z  developer  REVIEW-RECHECK: task START — reinstall, OBS runtime check, uninstall
+2026-11-23T01:40:37Z  code-reviewer  Gate 2 round 2 END — Approve; B1/B2/S4/S1(plan)/S2/N1/N3/N4 closed; hygiene edit done; 3 new folder-name hits in REVIEW-FIX artifacts flagged
+2026-11-23T01:41:08Z  orchestrator  Gate 2 round 2: Approve (pending OBS re-check). Orchestrator reworded local-folder mentions in develop/evidence/REVIEW-FIX/review-fix-report.md:58,60 and develop/output-REVIEW-FIX.md:109
+2026-11-23T01:44:21Z  developer  REVIEW-RECHECK: task END — all criteria pass; plugin removed, OBS relaunched clean (output-REVIEW-RECHECK.md)
+2026-11-23T01:44:49Z  orchestrator  REVIEW-RECHECK passed (OBS load/render clean, 0 GL errors, 0 leaks, plugin uninstalled again). Gate 2 satisfied. Asking user about CLAUDE.md/PLAN.md status edits (C-013) before Gate 3
+2026-11-23T01:55:12Z  orchestrator  user approved CLAUDE.md table+Setup, PLAN.md status line, .vscode/ gitignore for docs pass; Gate 3 document-writer started
+2026-11-23T01:55:36Z  document-writer  start Gate 3 docs pass (LIC-002, BS-010, SPK-010)
+2026-11-23T02:04:49Z  document-writer  END Gate 3 docs pass: 8 docs pages, 4 common-issues areas, 2 how-x-works flows, CLAUDE.md/PLAN.md/.gitignore approved edits; report docs/output-doc-sync-report.md
+2026-11-23T02:05:28Z  orchestrator  Gate 3 docs pass accepted (8 docs pages, decisions.md D1+D4, 4 common-issues areas, 2 how-x-works, CLAUDE.md/PLAN.md/.gitignore approved edits; hygiene scan clean — remaining hits are pattern lists only). Gate 4 asked
+2026-11-23T02:07:20Z  orchestrator  Gate 4: user said yes; output-pull-request.md written. Run complete. Nothing committed/pushed.

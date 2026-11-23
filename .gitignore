@@ -8,3 +8,8 @@ build/
 !.claude/working-sessions/*/develop/evidence/**/*.md
 !.claude/working-sessions/*/develop/evidence/**/*.py
 browser-source/dist/
+plugin/.deps/
+plugin/build_*/
+plugin/cmake/.CMakeBuildNumber
+plugin/CMakeUserPresets.json
+.vscode/
