@@ -505,6 +505,7 @@ sudo apt install autoconf autoconf-archive automake bison build-essential cmake 
   ninja-build obs-studio pkg-config python3 tar unzip xorg-dev xsltproc zip
 
 git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
+git -C ~/vcpkg checkout 5f96cd15fd745122cf27e0524606d6c1efc5fd07
 ~/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 export VCPKG_ROOT=~/vcpkg
 
@@ -518,8 +519,8 @@ cmake --build build_x86_64 --target package
 The package is written to `plugin/release/synesthesia-vibe-obs-<version>-x86_64-linux-gnu.deb`,
 next to a `-dbgsym.ddeb` holding its debug symbols. The first build compiles the core's
 dependencies with vcpkg, which takes a while. Install the `.deb` as above. CMake 3.28 or later is
-needed (Ubuntu 24.04's `cmake` is fine), and the build only runs with the `ubuntu-x86_64` presets on
-x86_64.
+needed (Ubuntu 24.04's `cmake` is fine). The vcpkg commit is the one CI uses. On Linux the build
+configures only on x86_64 with the Ninja generator, which the `ubuntu-x86_64` presets use.
 
 ## For developers
 

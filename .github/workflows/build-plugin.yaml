@@ -52,6 +52,14 @@ jobs:
           echo "ninja $(ninja --version)"
           name="$(jq -r .name buildspec.json)"
           version="$(jq -r .version buildspec.json)"
+          if [[ ! "${name}" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::plugin/buildspec.json name '${name}' must match ^[a-z0-9-]+$"
+            exit 1
+          fi
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::plugin/buildspec.json version '${version}' must be X.Y.Z"
+            exit 1
+          fi
           {
             echo "VCPKG_ROOT=${RUNNER_TEMP}/vcpkg"
             echo "VCPKG_DEFAULT_BINARY_CACHE=${RUNNER_TEMP}/vcpkg-archives"
@@ -256,6 +264,14 @@ jobs:
           esac
           name="$(jq -r .name buildspec.json)"
           version="$(jq -r .version buildspec.json)"
+          if [[ ! "${name}" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::plugin/buildspec.json name '${name}' must match ^[a-z0-9-]+$"
+            exit 1
+          fi
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::plugin/buildspec.json version '${version}' must be X.Y.Z"
+            exit 1
+          fi
           {
             echo "VCPKG_ROOT=${RUNNER_TEMP}/vcpkg"
             echo "VCPKG_DEFAULT_BINARY_CACHE=${RUNNER_TEMP}/vcpkg-archives"

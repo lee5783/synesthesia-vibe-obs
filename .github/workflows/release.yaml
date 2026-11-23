@@ -134,7 +134,7 @@ jobs:
 
           - \`${asset_base}-macos-arm64.pkg\`: macOS installer, Apple Silicon only.
           - \`${asset_base}-macos-arm64.zip\`: the same plugin bundle for a manual install.
-          - \`SHA256SUMS.txt\`: check the downloads with \`shasum -a 256 -c SHA256SUMS.txt\`.
+          - \`SHA256SUMS.txt\`: check the downloads with \`shasum -a 256 --ignore-missing -c SHA256SUMS.txt\`.
 
           ## Before you install
 

@@ -67,3 +67,46 @@ version*, C-009).
 Everything Linux: the core compiling with GCC 13 (C-013), PIC on the core objects (C-015), the
 vcpkg `glfw3` system packages (C-014), the PPA libobs headers and CMake config, the
 `dpkg-shlibdeps` mapping of libobs to a package, and the GLVND link.
+
+## CI result (run 45144284376, commit ec49eeb)
+
+After the CI iterations in `output-P4-005.md`, run 5 was green on both jobs, and every Linux check
+ran for real (log excerpts):
+
+```
+obs-studio package: obs-studio 32.2.0-0obsproject1~noble
+libobs headers: /usr/include/obs/obs-config.h
+libobs API version: 32.2.0
+build_x86_64/synesthesia-vibe-obs.so: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, …, with debug_info, not stripped
+##[group]Exports
+obs_module_free_locale
+obs_module_get_string
+obs_module_load
+obs_module_set_locale
+obs_module_set_pointer
+obs_module_unload
+obs_module_ver
+ (NEEDED) Shared library: [libobs.so.30]
+ (NEEDED) Shared library: [libOpenGL.so.0]
+ (NEEDED) Shared library: [libEGL.so.1]
+ (NEEDED) Shared library: [libstdc++.so.6] [libm.so.6] [libgcc_s.so.1] [libc.so.6] [ld-linux-x86-64.so.2]
+	libobs.so.30 => /lib/x86_64-linux-gnu/libobs.so.30
+	libOpenGL.so.0 => /lib/x86_64-linux-gnu/libOpenGL.so.0
+	libEGL.so.1 => /lib/x86_64-linux-gnu/libEGL.so.1
+	(… libobs's own dependencies, none "not found")
+dlopen probe: RTLD_NOW | RTLD_LOCAL load succeeded and obs_module_load resolved
+CPack: - package: …/plugin/release/synesthesia-vibe-obs-0.1.0-x86_64-linux-gnu.deb generated.
+ Package: synesthesia-vibe-obs
+ Version: 0.1.0
+ Architecture: amd64
+ Maintainer: lee5783 <lee5783@users.noreply.github.com>
+ Depends: libc6 (>= 2.38), libegl1, libgcc-s1 (>= 3.0), libopengl0, libstdc++6 (>= 13.1), obs-studio
+-rw-r--r-- root/root   1470288 … ./usr/lib/x86_64-linux-gnu/obs-plugins/synesthesia-vibe-obs.so
+-rw-r--r-- root/root      1090 … ./usr/share/obs/obs-plugins/synesthesia-vibe-obs/locale/en-US.ini
+##[group]Packaged binary exports
+(the same 7 obs_module_* names)
+```
+
+No `TEXTREL`, and no defined dynamic symbol beyond the 7. Artifact
+`synesthesia-vibe-obs-0.1.0-x86_64-linux-gnu`, 447203 B. The dry-run logic above matched the real
+output; the linker-reserved allow-list was not needed, since none of those names appeared.

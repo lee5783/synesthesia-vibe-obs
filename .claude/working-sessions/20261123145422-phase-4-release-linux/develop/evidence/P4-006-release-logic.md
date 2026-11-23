@@ -135,3 +135,30 @@ attached (C-006) and stays a workflow artifact of the `build` job. Only the `rel
 The real run: draft creation, asset upload, and the draft's asset list. Use a throwaway tag the
 validation accepts, e.g. `v0.1.0-beta.0` (the Gate 1 example `v0.1.0-ci.1` is refused by design,
 C-017).
+
+## CI result (release run 45146667649)
+
+The test tag ran after this file was written, so the "Unverified until a test tag runs" section
+above is now answered:
+
+- Tag `v0.1.0-beta.0` at `ec49eeb` (the iteration 4 head). Workflow **Release**, all four jobs
+  green: **Validate tag**, **Build / macOS arm64**, **Build / Linux x86_64**, **Create draft
+  release**.
+- The draft prerelease held exactly:
+
+  | Asset | Size |
+  |---|---|
+  | `SHA256SUMS.txt` | 218 B |
+  | `synesthesia-vibe-obs-0.1.0-macos-arm64.pkg` | 768102 B |
+  | `synesthesia-vibe-obs-0.1.0-macos-arm64.zip` | 487636 B |
+
+  No `.deb` (C-006). The release job logged `…macos-arm64.pkg: OK` and `…zip: OK` from its own
+  `sha256sum -c`.
+- The orchestrator's local check of the downloaded assets: `shasum -a 256 -c SHA256SUMS.txt` gave
+  both files `OK`. `pkgutil --check-signature` reports no signature, as expected (ad-hoc signing only,
+  C-018).
+- The draft release and the tag were deleted afterwards. The reviewer confirmed this: `gh release list`
+  is empty and `git ls-remote --tags origin` lists no tags.
+- Since then (review fix m1), the notes tell users to run
+  `shasum -a 256 --ignore-missing -c SHA256SUMS.txt`, the same command as `plugin/README.md`. A user
+  who downloads only one file no longer sees a `FAILED open or read` line.

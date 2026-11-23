@@ -28,3 +28,9 @@
 2026-11-23T09:23:56Z  orchestrator  CI run 45144284376 (ec49eeb): macOS + Linux success; Linux checks ran (7 exports, NEEDED libobs.so.30/libOpenGL/libEGL, dlopen RTLD_NOW ok, .deb inspected, PPA OBS 32.2.0). Pushing throwaway tag v0.1.0-beta.0 to test release.yaml (Gate 1 C-001)
 2026-11-23T09:24:51Z  developer  task START P4-007 (plugin/README.md Download + Linux sections); checking run 5 vcpkg cache skip
 2026-11-23T09:27:25Z  developer  task END P4-007 (output-P4-007.md written; ready to push)
+2026-11-23T09:36:37Z  orchestrator  Release run 45146667649 (tag v0.1.0-beta.0 @ ec49eeb): validate/macOS/Linux/draft-release all success; draft prerelease had pkg+zip+SHA256SUMS (no .deb), checksums verified locally; draft release and tag deleted (C-001). P4-007 pushed as dca171a. Develop complete; Gate 2 code-reviewer next
+2026-11-23T09:37:00Z  code-reviewer  P4-011 Gate 2: start PR-style review of feature/plugin-phase-2-macos...feature/phase-4-release-linux
+2026-11-23T09:44:35Z  code-reviewer  P4-011 Gate 2 done: Approve, 0 blocking, 8 minor + 1 low security hardening; review/input-code-review.md + review/output-review-findings.md written
+2026-11-23T09:45:17Z  orchestrator  Gate 2: review Approve, no blockers. Sent REVIEW-FIX (m1 checksum line, m2 evidence CI results, m3 README vcpkg pin/guard wording, S1 buildspec validation) to developer; m4-m7 skipped as optional
+2026-11-23T09:45:36Z  developer  task START REVIEW-FIX (m1, m2, m3, S1 from review/output-review-findings.md)
+2026-11-23T09:47:18Z  developer  task END REVIEW-FIX (m1 m2 m3 S1 done; actionlint clean; ready to push)

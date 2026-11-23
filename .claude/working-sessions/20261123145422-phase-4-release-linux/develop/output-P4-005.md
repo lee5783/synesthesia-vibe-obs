@@ -236,3 +236,31 @@ change):**
 **Still unverified:** everything from the link onward (the iteration 2 `LINK_GROUP` fix and all
 binary and package checks). A long Launchpad outage can still fail the job. It now fails with a
 clear message, and the fix is to re-run.
+
+## CI result (run 45144284376, commit ec49eeb)
+
+- **Both jobs green.** On Linux, every check ran: exactly the 7 `obs_module_*` exports on the
+  built and the packaged `.so`; `NEEDED` only `libobs.so.30`, `libOpenGL.so.0`, `libEGL.so.1` and
+  the libc/libstdc++/libgcc/libm/loader libraries; no `TEXTREL`; nothing `not found` in `ldd`; the
+  `dlopen` probe with `RTLD_NOW | RTLD_LOCAL` succeeded.
+- **The `.deb`:** `synesthesia-vibe-obs-0.1.0-x86_64-linux-gnu.deb`, with
+  `Maintainer: lee5783 <lee5783@users.noreply.github.com>`,
+  `Depends: libc6 (>= 2.38), libegl1, libgcc-s1 (>= 3.0), libopengl0, libstdc++6 (>= 13.1), obs-studio`,
+  and the `.so` and `locale/en-US.ini` at the expected paths. Uploaded as an artifact (447203 B).
+- **libobs:** PPA `obs-studio 32.2.0-0obsproject1~noble`, libobs API 32.2.0.
+- **Excerpts:** `evidence/P4-005-linux-check-dry-run.md` *CI result*.
+- **Release run 45146667649** (tag `v0.1.0-beta.0`) also built Linux green in Release config. The
+  `.deb` stayed an artifact and was not attached.
+
+### Timings (TC-C01 / TC-C02, from `gh run view`)
+
+| Job | Run | Cache state | Wall time |
+|---|---|---|---|
+| macOS arm64 | run 1 (45139712419) | cold: `.deps` (libobs build) and vcpkg | 5m39s |
+| macOS arm64 | run 5 (45144284376) | warm | 1m59s |
+| Linux x86_64 | run 5 (45144284376) | warm vcpkg (27/27 restored) | about 14.5 min, mostly PPA 503 retries in *Install build dependencies* |
+| Linux x86_64 | release run 45146667649 | cold vcpkg (tag ref sees no PR caches) | 11m38s |
+
+The Linux time depends mostly on how fast Launchpad's PPA answers, not on the build. A warm build
+with a responsive PPA should come in below the 11m38s cold figure. The orchestrator measured it
+from `gh`.

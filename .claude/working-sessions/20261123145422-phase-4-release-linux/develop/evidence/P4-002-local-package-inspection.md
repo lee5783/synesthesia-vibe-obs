@@ -117,3 +117,11 @@ exit=1
 - The real `macos-26` runner with Xcode 26.6 (`-Werror` drift, C-004).
 - Cold and warm wall times; cache hits for `plugin/.deps` and the vcpkg binary archives (TC-C02).
 - Artifact names and sizes as uploaded.
+
+## CI result
+
+Since this file was written the macOS job has run on GitHub. It was green on every run, 1 to 5
+and the release run, with all inspection checks passing. Run 5 showed
+`CFBundleVersion 45144284376` (= the run id, TC-C07). Wall time: cold 5m39s (run 1, libobs built
+into `.deps` and vcpkg cold), warm 1m59s (run 5: `.deps` and 6/6 vcpkg archives restored). Xcode
+26.6 on `macos-26` built the plugin cleanly under `-Werror`, with no source change needed (C-004).
