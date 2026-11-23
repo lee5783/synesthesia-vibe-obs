@@ -1,8 +1,12 @@
 # SynesthesiaVibe for OBS — plan
 
 Status: **Phase 1 built**, awaiting the user's loopback checklist (BlackHole on macOS, VB-Cable on
-Windows) before it is marked done. **Phase 2 spike done**; the Phase 2 tasks have not started. D1
-and D4 are locked; D5 (Pages) is open and skipped for now. Last updated 2026-11-23.
+Windows) before it is marked done. **Phase 2 (macOS) built and reviewed**: tasks 1–6 are done;
+task 7 (packaging) is partly done, with an ad-hoc signed `.plugin`, an unsigned `.pkg` and a zip,
+and notarization waits on Developer ID credentials. Phase 2 is **not done**: its *Done when*
+checks are deferred (the 1080p60 run, the integrated Done-when run, and the OBS check of the
+"(first preset)" dialog fix). D1 and D4 are locked; D5 (Pages) is open and skipped for now. Last
+updated 2026-11-23.
 
 ## Goal
 
@@ -401,14 +405,14 @@ Xcode 27.2 and CMake 4.4.5.
 
 **Tasks after the spike**
 
-1. **CMake project** from the plugin template; links libobs and the core submodule.
-2. **Source lifecycle:**
+1. **CMake project** from the plugin template; links libobs and the core submodule. **Done.**
+2. **Source lifecycle:** **Done.**
    - `create` and `destroy` run inside `obs_enter_graphics()` and call `sv_init_gl` /
      `sv_create` / `sv_destroy`.
    - `video_tick` accumulates the frame delta; `video_render` passes it to `sv_render_frame`.
    - `video_render` renders, then draws the result with OBS's default effect.
    - `get_width` / `get_height` report the size from the source settings.
-3. **Audio:**
+3. **Audio:** **Done.**
    - A source-settings list lets the user pick any OBS audio source
      (`obs_source_add_audio_capture_callback`) or the whole mix (`audio_output_connect` on a
      chosen track).
@@ -419,17 +423,20 @@ Xcode 27.2 and CMake 4.4.5.
      atomics; it never calls `sv_*` (see the race follow-up above).
    - Callbacks are removed before the source is destroyed, and when the user picks a different
      audio source.
-4. **Presets:**
+4. **Presets:** **Done.**
    - Settings: a preset folder (path picker), the current preset, a random-order toggle, and the
      auto-cycle and transition times (`sv_set_transition_config`).
    - Loading happens off the render thread with `sv_prepare_preset`, then `sv_commit_preset`
      in `video_render`, under the graphics context.
 5. **Hotkeys:** next preset, previous preset, random preset, and pause auto-cycle
-   (`obs_hotkey_register_source`).
+   (`obs_hotkey_register_source`). **Done.**
 6. **Resolution:** a width × height setting (default 1920×1080) that calls `sv_resize` when it
-   changes; an optional render-scale setting to save GPU.
+   changes; an optional render-scale setting to save GPU. **Done.**
 7. **Packaging:** a signed and notarized `.plugin` bundle, plus install steps for
-   `~/Library/Application Support/obs-studio/plugins/`.
+   `~/Library/Application Support/obs-studio/plugins/`. **Partly done:** an ad-hoc signed,
+   arm64-only `.plugin`, an unsigned `.pkg` and a zip are built and inspected, and the install
+   steps are in `plugin/README.md`. Notarization is documented (`docs/integrations.md`) and waits
+   on Developer ID credentials. The pkg install into OBS is not verified yet.
 
 **Done when** on macOS (Apple Silicon, OBS 31+):
 
@@ -438,6 +445,15 @@ Xcode 27.2 and CMake 4.4.5.
 - Changing preset or transition settings takes effect without restarting OBS.
 - Removing the source, or quitting OBS, leaks nothing and crashes nothing.
 - Other sources in the same scene still draw correctly (the GL-state check).
+
+**Done-when state (2026-11-23):** not met. The user deferred these checks; each was verified per
+task on intermediate builds, but not on the final integrated build:
+
+- **Deferred:** the 1080p60 measurement in a dedicated profile (P2-012).
+- **Deferred:** the Done-when run on the integrated build (P2-011): the GL-state check, both audio
+  paths, live settings, removal and quit with no leaks, and the race stress test.
+- **Deferred:** the OBS check of the "(first preset)" fix that stops the properties dialog from
+  saving `preset` when it opens (P2-010b). The fix is built and reviewed.
 
 ## Phase 3 — Native plugin, Windows (large, blocked)
 
@@ -525,6 +541,18 @@ once filed. The draft text for each is inline below.
    the `sv_*` API, not glad, projectM-Eval, ns-eel2, stb or C++ weak definitions, and don't need
    an export list or version script. At `v0.7.0` the library exports 2,522 `glad_gl*` symbols and
    the header has no visibility macro."
+5. A host-settable folder for random textures. Found in Phase 2: the core's random-texture picker
+   scans only `<resource_path>/textures`, and the plugin's release ships no presets or textures,
+   so presets that ask for a random texture get none. The plugin documents the limit in
+   `plugin/README.md`. Not blocking. Drafted, not filed: "Let the host
+   choose where random textures come from:
+   - make the random-texture picker also scan `texture_search_path` (or add an `sv_config` field
+     for a random-texture folder) instead of only `<resource_path>/textures`;
+   - allow changing that folder after `sv_create` (for example `sv_set_texture_search_path`), so a
+     host can follow the user's preset folder without re-creating the context;
+   - keep the current behaviour when the host sets nothing."
+   Asks #4 and #6 (per-context PCM buffer, public reset of stale audio) are drafted in
+   `docs/concerns.md`.
 
 ## Evidence and testing
 

@@ -11,7 +11,9 @@ write-up** here so the next lookup is instant instead of re-traced through the c
 
 | Flow | Read |
 |---|---|
-| Plugin render frame (`video_tick` → `video_render` → GL guard → `sv_render_frame` → flipped sprite) | [`how-x-works/plugin-render-frame.md`](how-x-works/plugin-render-frame.md) |
+| Plugin render frame (`video_tick` atomics → `video_render` → transition config, commit, resize, audio push, `sv_render_frame` in the GL guard → opaque flipped sprite; teardown) | [`how-x-works/plugin-render-frame.md`](how-x-works/plugin-render-frame.md) |
+| Plugin audio path (source capture or whole mix → resampler → SPSC ring → `sv_push_pcm_float`, silence push) | [`how-x-works/plugin-audio-path.md`](how-x-works/plugin-audio-path.md) |
+| Plugin preset loading (setting / auto-cycle request / hotkey → worker `sv_prepare_preset` → ready slot → `sv_commit_preset` in render; cycle latch, pause) | [`how-x-works/plugin-preset-loading.md`](how-x-works/plugin-preset-loading.md) |
 | Browser Source startup (URL settings → dist import → playlist → cycling → audio) | [`how-x-works/browser-source-startup.md`](how-x-works/browser-source-startup.md) |
 
 ## Adding/updating an entry

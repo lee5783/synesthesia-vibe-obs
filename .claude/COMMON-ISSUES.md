@@ -9,10 +9,10 @@ touching, via `Read`/`Grep`, same as any other file.
 
 | Area | Read |
 |---|---|
-| Plugin build and core submodule (template build-number bug, `git submodule status` tag label) | [`common-issues/plugin-build.md`](common-issues/plugin-build.md) |
-| Plugin runtime in OBS (GL state cache desync, `gl_state_guard`) | [`common-issues/plugin-runtime.md`](common-issues/plugin-runtime.md) |
+| Plugin build, packaging and core submodule (template build-number bug, build-guard message, `release`/`Release` collision, quoted pkg receipt id, `._` payload entries, `git submodule status` tag label) | [`common-issues/plugin-build.md`](common-issues/plugin-build.md) |
+| Plugin runtime in OBS (GL state cache desync, `gl_state_guard`, unguarded state written by `sv_resize`) | [`common-issues/plugin-runtime.md`](common-issues/plugin-runtime.md) |
 | Browser Source in OBS (macOS mic permission → `NotFoundError`, first-run blank source) | [`common-issues/browser-source.md`](common-issues/browser-source.md) |
-| Verification tooling (Chrome fake audio silent, `osascript` quit -128) | [`common-issues/verification-tooling.md`](common-issues/verification-tooling.md) |
+| Verification tooling (Chrome fake audio silent, `osascript` quit -128, properties dialog open during removal wedges OBS, `RemoveInput` in a non-rendering scene leaves the source alive) | [`common-issues/verification-tooling.md`](common-issues/verification-tooling.md) |
 
 Tech debt and planned fixes that are not quick gotchas live in `docs/concerns.md`.
 

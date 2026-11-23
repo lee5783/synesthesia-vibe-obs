@@ -91,3 +91,4 @@
 2026-11-23T02:04:49Z  document-writer  END Gate 3 docs pass: 8 docs pages, 4 common-issues areas, 2 how-x-works flows, CLAUDE.md/PLAN.md/.gitignore approved edits; report docs/output-doc-sync-report.md
 2026-11-23T02:05:28Z  orchestrator  Gate 3 docs pass accepted (8 docs pages, decisions.md D1+D4, 4 common-issues areas, 2 how-x-works, CLAUDE.md/PLAN.md/.gitignore approved edits; hygiene scan clean — remaining hits are pattern lists only). Gate 4 asked
 2026-11-23T02:07:20Z  orchestrator  Gate 4: user said yes; output-pull-request.md written. Run complete. Nothing committed/pushed.
+2026-11-23T02:12:06Z  orchestrator  user asked to open the PR: committed 987039e on feature/browser-source-phase-1-and-plugin-spike, pushed, opened PR #1

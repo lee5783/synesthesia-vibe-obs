@@ -1,0 +1,71 @@
+2026-11-23T02:14:15Z  orchestrator  session start: Start phase 2 (PLAN.md Phase 2 — native plugin, macOS)
+2026-11-23T02:15:13Z  planner  start: planning Phase 2 native plugin macOS
+2026-11-23T02:23:59Z  planner  done: wrote input-plan + 4 output-plan files (16 tasks P2-001..P2-016, 28 test cases, 29 concerns)
+2026-11-23T02:24:55Z  orchestrator  plan received (P2-001..P2-016, C-001..C-029); verified C-006 global PCM buffer in core audiobuf.cpp:28; Gate 1 opened
+2026-11-23T02:27:07Z  orchestrator  Gate 1 resolved (plan/output-plan-gate-1-decisions.md): all recommended defaults incl. C-001 separate profile, C-002 ad-hoc, C-003 no presets bundled
+2026-11-23T02:27:23Z  developer  P2-001 delegation received; reading rules and inputs
+2026-11-23T02:28:18Z  developer  task START P2-001 build guards
+2026-11-23T02:31:34Z  developer  task END P2-001 build guards; output-P2-001.md written
+2026-11-23T02:32:05Z  orchestrator  P2-001 accepted (guard refuses non-Xcode/non-arm64/universal; fresh build ok, 7 exports); started P2-002
+2026-11-23T02:32:10Z  developer  P2-002 delegation received; reading rules and plan
+2026-11-23T02:33:14Z  developer  task START P2-002
+2026-11-23T02:48:05Z  developer  task END P2-002 (output-P2-002.md written; 5802/5802 stress OK, 0 overlaps, 0 GL errors, 0 leaks; plugin left installed; Untitled restored)
+2026-11-23T02:48:48Z  orchestrator  P2-002 accepted (0 overlaps in 22450 core calls over 5-min stress; off-air screenshot verified non-black; detector absent from source); started P2-003
+2026-11-23T02:48:53Z  developer  P2-003 developer invoked; reading rules and delegated paths
+2026-11-23T02:49:22Z  developer  P2-003 task START
+2026-11-23T02:57:27Z  developer  P2-003 task END; output-P2-003.md written
+2026-11-23T02:58:11Z  orchestrator  P2-003 accepted (swarm min alpha 255, magenta-nest screenshot verified, probe colours unchanged); started P2-004
+2026-11-23T02:58:15Z  developer  P2-004 developer start: reading rules, plan, P2-002/P2-003 outputs
+2026-11-23T03:01:08Z  developer  P2-004 task START (input-dev.md updated)
+2026-11-23T03:26:55Z  developer  P2-004 task END (output-P2-004.md written; final build installed, Untitled restored)
+2026-11-23T03:27:53Z  orchestrator  P2-004 accepted (audio ring + source capture + resampler; silence push after 0.5 s added — core never expires stale PCM, noted as new upstream ask; headers ok, no comments, debug log absent); started P2-005
+2026-11-23T03:27:57Z  developer  P2-005 delegated: reading rules and plan
+2026-11-23T03:29:06Z  developer  P2-005 task START (input-dev.md updated)
+2026-11-23T03:45:01Z  developer  P2-005 task END (output-P2-005.md written; mix track1 reacts, track2 0.000, switch ordering ok, 0 leaks, 0 GL errors; final build installed, Untitled restored)
+2026-11-23T03:45:47Z  orchestrator  P2-005 accepted (whole-mix via audio_output_connect, track 1-6, one feed at a time, 0 leaks/GL errors); started P2-006
+2026-11-23T03:45:52Z  developer  P2-006 delegation received; reading rules and inputs
+2026-11-23T03:48:39Z  developer  P2-006 task START (input-dev.md updated)
+2026-11-23T04:05:04Z  developer  P2-006 task END (output-P2-006.md written; 16->0 skipped frames while switching, stale prepares dropped, 40 removals no crash, 0 leaks, 0 GL errors; final build installed without dev presets, Untitled restored)
+2026-11-23T04:05:57Z  orchestrator  P2-006 accepted (off-thread prepare, 0 skipped frames on 30 switches vs 16 before; dev preset copy removed from bundle). New user-facing limit: random textures only from bundle textures/ (empty in release) — to raise with user before docs. Started P2-007
+2026-11-23T04:06:02Z  developer  P2-007 delegation received; reading developer rules and delegated paths
+2026-11-23T04:08:57Z  developer  task START P2-007
+2026-11-23T04:28:26Z  developer  task END P2-007 (output-P2-007.md written; evidence in develop/evidence/P2-007)
+2026-11-23T04:29:11Z  orchestrator  P2-007 accepted (cycle every cycle+blend, random no repeat, live changes w/o restart, broken preset skipped; one unreproduced +6 skipped frames after launch — recheck in P2-011); started P2-008
+2026-11-23T04:29:15Z  developer  P2-008 developer start: reading delegated paths
+2026-11-23T04:33:37Z  developer  P2-008 task START (input-dev.md updated; build green)
+2026-11-23T04:48:44Z  developer  P2-008 task END (output-P2-008.md written; evidence in develop/evidence/P2-008; plugin left installed; OBS on Untitled)
+2026-11-23T04:49:31Z  orchestrator  P2-008 accepted (4 source hotkeys; TriggerHotkeyByName works (C-029); pause defers requests rather than duration 0 — deviation accepted, matches C-013 intent; hotkeys unregistered in destroy); started P2-009
+2026-11-23T04:49:36Z  developer  P2-009 delegation received; reading role, plan and rules
+2026-11-23T04:51:24Z  developer  P2-009 task START (input-dev.md updated)
+2026-11-23T05:10:22Z  developer  P2-009 task END (output-P2-009.md written; evidence in develop/evidence/P2-009; plugin left installed; OBS on Untitled)
+2026-11-23T05:11:13Z  orchestrator  P2-009 accepted (width/height/scale live; sv_resize in guard, other sources bit-identical; render-scale benefit only under GPU saturation — GetStats on GL tracks CPU, to document); started P2-010
+2026-11-23T05:11:18Z  developer  P2-010 developer delegation received; reading rules and plan
+2026-11-23T05:12:29Z  developer  task START P2-010 settings pass
+2026-11-23T05:26:14Z  developer  task END P2-010 settings pass (build ok, 10/10 defaults, strings in ini, nm 7/7, 0 GL errors; leak check blocked: OBS waiting at safe-mode prompt after cleanup wedge, user must click Run in Normal Mode)
+2026-11-23T05:26:42Z  orchestrator  P2-010 received: settings pass done (4 groups, 10 defaults, strings in ini). OBS wedged by test cleanup (dialog kept removed source alive -> Source Cleanup Error), developer SIGINT'd OBS, Qt abort (no plugin frames); OBS now at safe-mode prompt — user must click Run in Normal Mode. Leak check deferred to P2-011
+2026-11-23T05:30:54Z  developer  P2-010b delegation received; reading plan/develop artifacts
+2026-11-23T05:30:54Z  orchestrator  P2-010 accepted (leak check deferred to P2-011). User: clicked Normal Mode (but OBS log still at crash prompt, websocket closed — waiting); approved dialog auto-save fix -> P2-010b started (build first, OBS check only if websocket up; never kill OBS)
+2026-11-23T05:31:16Z  developer  task START P2-010b (first preset) list entry
+2026-11-23T05:33:07Z  developer  task END P2-010b (build ok -Werror, nm 7/7, codesign ok, locale key in bundle; OBS check pending: ws 4455 closed, OBS pid up ~11 min likely at safe-mode prompt; new build not installed)
+2026-11-23T05:33:50Z  orchestrator  P2-010b built (OBS check pending websocket). Started P2-013 (packaging, no OBS) and P2-014 (plugin README) in parallel while OBS waits on user prompt
+2026-11-23T05:33:54Z  developer  P2-013 developer start: reading delegated paths (packaging)
+2026-11-23T05:33:54Z  developer  P2-014 developer start: reading rules, plan, handoffs for plugin/README.md
+2026-11-23T05:34:56Z  developer  P2-013 task START
+2026-11-23T05:35:54Z  developer  task START P2-014 plugin/README.md
+2026-11-23T05:38:51Z  developer  task END P2-014 (plugin/README.md written; labels/defaults/ranges/hotkeys/log lines checked against src + en-US.ini; artifact names and OBS/macOS UI paths unverified)
+2026-11-23T05:38:55Z  developer  P2-013 task END: output-P2-013.md written (pkg+zip produced, inspected; OBS install check left open)
+2026-11-23T05:39:17Z  orchestrator  P2-014 accepted (plugin/README.md; claims checked against code; artifact names deferred to P2-013)
+2026-11-23T05:39:36Z  orchestrator  P2-013 accepted (Release pkg+zip built and inspected: arm64-only distribution via project-owned copy, home domain, no presets, adhoc, 7 exports, spctl rejects as expected). Follow-ups: quoted pkg receipt id (template bug), dSYM installed. pkg install check folded into P2-011
+2026-11-23T06:16:56Z  orchestrator  user: skip OBS tasks (P2-010b OBS check, P2-011, P2-012 deferred). Gate 2 code-reviewer started
+2026-11-23T06:17:01Z  code-reviewer  P2-015 start: Gate 2 review of Phase 2 change set (P2-001..P2-010b, P2-013, P2-014)
+2026-11-23T06:26:21Z  code-reviewer  P2-015 END: approve w/ 2 README should-fix (dSYM left on uninstall; quoted pkg receipt id breaks pkgutil --forget), 9 nits, 0 blockers; build ok, exports 7/7, plugin/cmake untouched, hygiene clean; review/output-review-findings.md
+2026-11-23T06:27:11Z  orchestrator  Gate 2 review: Approve with 2 README should-fix (dSYM uninstall, quoted pkg receipt id) + 9 nits; README fix pass started; asking user re random textures (pending since P2-006) and plugin removal (C-026)
+2026-11-23T06:27:16Z  developer  REVIEW-FIX: start — reading review findings S1/S2/N4, outputs P2-013/P2-014, plugin/README.md
+2026-11-23T06:28:20Z  developer  REVIEW-FIX: task START — README S1 (dSYM), S2 (quoted receipt id), N4 (blend wording)
+2026-11-23T06:29:01Z  developer  REVIEW-FIX: task END — output-REVIEW-FIX.md written; README S1/S2/N4 fixed, evidence in evidence/REVIEW-FIX/
+2026-11-23T06:34:12Z  orchestrator  README fix pass accepted (S1 dSYM, S2 quoted receipt id, N4 verified by grep) -> Gate 2 satisfied. User: textures = document + upstream ask #5; removed installed test plugin (bundle id checked)
+2026-11-23T06:35:13Z  orchestrator  user approved PLAN.md status+task states only (ask #5 per earlier answer); Gate 3 document-writer started
+2026-11-23T06:35:18Z  document-writer  start Gate 3 doc sync (P2-016)
+2026-11-23T06:47:33Z  document-writer  END Gate 3 doc sync: docs/ 8 pages, how-x-works (1 rewritten, 2 new), common-issues 3 files, PLAN.md status+task states+ask #5; report docs/output-doc-sync-report.md
+2026-11-23T06:48:08Z  orchestrator  Gate 3 docs pass accepted (docs/ rewritten for Phase 2, 2 new how-x-works, common-issues, PLAN.md status/tasks/ask #5 only; CLAUDE.md checked — current; hygiene scan clean). Gate 4 asked
+2026-11-23T06:49:36Z  orchestrator  Gate 4: user chose template + open PR; output-pull-request.md written; committing, pushing, opening PR

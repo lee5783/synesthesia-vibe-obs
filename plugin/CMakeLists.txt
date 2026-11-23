@@ -7,6 +7,20 @@
 
 cmake_minimum_required(VERSION 3.28...3.30)
 
+if(
+  NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin"
+  OR NOT CMAKE_GENERATOR STREQUAL "Xcode"
+  OR NOT "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64"
+)
+  message(
+    FATAL_ERROR
+    "SynesthesiaVibe for OBS builds only on macOS, with the Xcode generator, for arm64 alone. "
+    "Detected host '${CMAKE_HOST_SYSTEM_NAME}', generator '${CMAKE_GENERATOR}', "
+    "CMAKE_OSX_ARCHITECTURES '${CMAKE_OSX_ARCHITECTURES}'. "
+    "Configure with 'cmake --preset macos-arm64' and build with 'cmake --build --preset macos-arm64'."
+  )
+endif()
+
 if(NOT DEFINED PLUGIN_BUILD_NUMBER AND NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/.CMakeBuildNumber")
   file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/.CMakeBuildNumber" "0")
 endif()
@@ -113,6 +127,11 @@ set_target_properties(
   PROPERTIES XCODE_ATTRIBUTE_EXPORTED_SYMBOLS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/exported-symbols.txt"
 )
 
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp src/visualizer-source.cpp src/visualizer-source.hpp)
+target_sources(
+  ${CMAKE_PROJECT_NAME}
+  PRIVATE src/audio-ring.cpp src/audio-ring.hpp src/plugin-main.cpp src/visualizer-source.cpp src/visualizer-source.hpp
+)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+
+configure_file(packaging/macos/distribution.in "${CMAKE_CURRENT_BINARY_DIR}/distribution" @ONLY)

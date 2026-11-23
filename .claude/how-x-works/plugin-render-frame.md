@@ -1,71 +1,122 @@
 # Plugin render frame — from OBS tick to the drawn sprite
 
 > Part of the how-x-works corpus — see [`../HOW-X-WORKS.md`](../HOW-X-WORKS.md) for the index.
-> Layer overview: `docs/architecture.md`. Stand-ins and the open race: `docs/concerns.md`.
+> Layer overview and the thread table: `docs/architecture.md`. Limits: `docs/concerns.md`.
+> Feeding flows: [`plugin-audio-path.md`](plugin-audio-path.md),
+> [`plugin-preset-loading.md`](plugin-preset-loading.md).
 
-How one OBS frame turns into a SynesthesiaVibe frame inside OBS's scene (spike state, macOS,
-OpenGL renderer). All citations are `plugin/src/visualizer-source.cpp` unless noted.
+How one OBS frame turns into a SynesthesiaVibe frame inside OBS's scene (macOS, OpenGL renderer).
+All citations are `plugin/src/visualizer-source.cpp` unless noted.
 
 ## 0. Setup (once per source)
 
-- `visualizer_create` (`:202-238`) enters OBS's graphics context, then inside
-  `with_core_gl_state` calls `sv_init_gl(opengl_get_proc)` and `sv_create(&config)` (1920×1080,
-  resource path = the bundle's data dir, cache = `obs_module_config_path("cache")`). It creates a
-  `GS_RGBA` texrender, leaves the context, and queues the preset path through `visualizer_update`.
-- `opengl_get_proc` (`:124-128`) is `dlsym` on the OpenGL framework opened `RTLD_LOCAL`.
+- `visualizer_create` (`:1107-1151`):
+  1. `configure_output_size` (`:934-942`) stores width, height (clamped 128–8192) and render scale
+     (clamped 50–100) in atomics; `core_target_size` (`:922-927`) gives the scaled size.
+  2. `obs_enter_graphics()`, then inside `with_core_gl_state`: `sv_init_gl(opengl_get_proc)` and
+     `sv_create(&config)` at the scaled size (resource path = the bundle's data dir, cache =
+     `obs_module_config_path("cache")`). A `GS_RGBA` texrender is created, then
+     `obs_leave_graphics()`.
+  3. On success: the preset worker (`os_task_queue_create`), `core_size`, and
+     `sv_set_preset_request_callback(…, preset_requested, …)`.
+  4. `visualizer_update` (`:1083-1091`) and `register_hotkeys` (`:606-619`).
+- `opengl_get_proc` (`:219-223`) is `dlsym` on the OpenGL framework opened `RTLD_LOCAL`.
 - Failure: `context` stays null, a `core setup failed` warning is logged, and every later render
-  returns early.
+  returns early. Creating a source costs about 1.5–2.4 skipped OBS frames (compile under the
+  graphics lock).
 
-## 1. `video_tick` — accumulate
+## 1. `video_tick` — record that time passed
 
-`visualizer_video_tick` (`:263-269`) runs on the graphics thread **without** the graphics lock:
-adds `seconds` to `pending_seconds`, sets `frame_pending`, and pushes the synthetic tone via
-`push_synthetic_tone` → `sv_push_pcm_float` (`:146-169`).
+`visualizer_video_tick` (`:1186-1194`) runs on the graphics thread **without** the graphics lock.
+It only:
 
-Edge case: this `sv_*` call can race an off-thread `video_render` (obs-websocket
-`GetSourceScreenshot`). Phase 2 moves it into `video_render` (`docs/concerns.md`).
+- adds `seconds` (as nanoseconds, skipping non-positive deltas) to the atomic
+  `pending_nanoseconds` with `fetch_add`;
+- sets the atomic `frame_pending`;
+- calls `maintain_audio_source` (`:782-797`), which `try_lock`s `audio_mutex` and at most once a
+  second resolves or re-checks the chosen audio source (never blocks the graphics thread).
+
+No `sv_*` call happens here. For video sources libobs also runs a deferred `update` inside this
+tick; `update` only copies settings and queues work.
+
+`show` / `activate` both call `visualizer_reset_pending_delta` (`:1196-1200`), which zeroes the
+delta (not the flag), so a source coming back on air continues instead of jumping.
 
 ## 2. `video_render` — render the core at most once per tick
 
-`visualizer_video_render` (`:295-326`) runs with the graphics context held. It returns if there is
-no context or texrender, and calls `render_core_frame` only if `frame_pending` is set. OBS may draw
-the source several times in a frame (preview, program, projectors, screenshots); only the first
-draw after a tick renders the core, later ones reuse the texture.
+`visualizer_video_render` (`:1232-1265`) runs with the graphics lock held, on the graphics thread
+or on another thread that took the lock (obs-websocket `GetSourceScreenshot`). It returns if there
+is no context or texrender. Then `frame_pending.exchange(false)` (`:1238`): only the draw that wins
+the flag calls `render_core_frame` with `take_pending_seconds` (`:1202-1206`), which takes the
+delta with `exchange(0)` and caps it at `max_step_seconds` = 0.1 s, dropping the excess. Later
+draws in the same frame (preview, program, projectors, screenshots) reuse the texture.
+
+The flag is taken before the delta. A tick landing between the two exchanges gives this render
+that tick's delta too and the next render about 0 s: a repeat frame, never lost or doubled time.
 
 ## 3. `render_core_frame` — core into the texrender FBO
 
-`render_core_frame` (`:271-293`):
+`render_core_frame` (`:1208-1230`), in order:
 
-1. `load_pending_preset` (`:171-188`) swaps out the mutex-guarded path and, if one is queued, runs
-   `sv_load_preset` inside `with_core_gl_state` (synchronous; stand-in for prepare/commit).
-2. `gs_texrender_reset` → `gs_texrender_begin(texrender, 1920, 1080)`; returns on failure.
-3. Saves and disables framebuffer sRGB: the core writes display-encoded values.
-4. Reads `GL_DRAW_FRAMEBUFFER_BINDING` — the texrender's FBO — and calls
-   `sv_render_frame(ctx, pending_seconds, fbo)` inside `with_core_gl_state`.
-5. Restores sRGB, `gs_texrender_end`, resets `pending_seconds` and `frame_pending`.
+1. `apply_transition_config` (`:891-913`): if `transition_dirty` is set under `preset_mutex`, copy
+   cycle / blend / random and call `sv_set_transition_config` inside `with_core_gl_state`
+   (`preset_duration_rand` 0, hard cuts off). Logs `auto-cycle: every … s, blend … s, … order` or
+   `auto-cycle: off, …`.
+2. `commit_ready_preset` (`:855-889`): under `preset_mutex`, take the `ready_preset` handle, its
+   path and blend, and clear the cycle latch mirror if there was one. Outside the lock,
+   `sv_commit_preset(ctx, prepared, blend)` inside the guard, then free the handle. Success →
+   `remember_committed_preset` (`:844-853`, history of 50) and `preset committed: … (blend …, …
+   ms)`. Failure → `preset failed to commit` and `preset_target` cleared.
+3. `resize_core` (`:944-961`): if the scaled target differs from `core_size`, `sv_resize` inside
+   the guard and log `core resized to …`. It runs before `gs_texrender_begin`, so the guard
+   restores OBS's target and the texrender then binds at the new size.
+4. `gs_texrender_reset` → `gs_texrender_begin(texrender, core_width, core_height)` at the
+   **scaled** size; returns on failure (`:1214-1216`).
+5. Save and disable framebuffer sRGB: the core writes display-encoded values (`:1218-1219`).
+6. Read `GL_DRAW_FRAMEBUFFER_BINDING`, the texrender's FBO (`:1221-1222`).
+7. `push_captured_audio` (`:827-842`): drain the newest ≤ 2304 frames from the ring into
+   `sv_push_pcm_float`, or push one block of zeros after 0.5 s without audio. Outside the guard
+   (no GL). Details: [`plugin-audio-path.md`](plugin-audio-path.md).
+8. `sv_render_frame(ctx, seconds, fbo)` inside the guard (`:1224-1226`). If the core's auto-cycle
+   timer has expired, the core calls `preset_requested` (`:522-542`) from inside this call; the
+   callback only sets flags under `preset_mutex` and queues the worker
+   ([`plugin-preset-loading.md`](plugin-preset-loading.md)).
+9. Restore sRGB, `gs_texrender_end` (`:1228-1229`).
 
 ## 4. The GL guard around each core call
 
-`with_core_gl_state` (`:118-122`) builds a `gl_state_guard` (`:46-116`) before the call and
+`with_core_gl_state` (`:213-217`) builds a `gl_state_guard` (`:141-211`) before the call and
 destroys it after: it saves program, VAO, `GL_ARRAY_BUFFER`, draw/read FBO, viewport, blend
 enable/factors/equations, the active unit and 2D/3D textures on units 0–7, and restores them (units
 first, then the active unit, then the rest). This keeps `libobs-opengl`'s state cache true; without
-it OBS draws with the core's program (`.claude/common-issues/plugin-runtime.md`).
+it OBS draws with the core's program (`.claude/common-issues/plugin-runtime.md`). Scissor, colour
+mask and clear colour are not saved; `sv_render_frame` and `sv_resize` both write them.
 
-## 5. Draw — flipped sprite with OBS's default effect
+## 5. Draw — opaque flipped sprite at the source size
 
-Back in `visualizer_video_render`: get the texrender texture; set framebuffer sRGB to
-`gs_get_linear_srgb()`; push blend state, disable blending; bind the texture to
-`OBS_EFFECT_DEFAULT`'s `image` with `gs_effect_set_texture_srgb` (linear sRGB) or
-`gs_effect_set_texture`; loop the `Draw` technique with `gs_draw_sprite(texture, GS_FLIP_V, 0, 0)`
-(the core's origin is bottom-left); pop blend state and restore sRGB.
+Back in `visualizer_video_render` (`:1241-1264`): get the texrender texture (return if none); read
+the source `size`; set framebuffer sRGB to `gs_get_linear_srgb()`; push blend state, disable
+blending; bind the texture to `obs_get_base_effect(OBS_EFFECT_OPAQUE)`'s `image` with
+`gs_effect_set_texture_srgb` (linear sRGB) or `gs_effect_set_texture`; loop the `Draw` technique
+with `gs_draw_sprite(texture, GS_FLIP_V, size.width, size.height)` (the core's origin is
+bottom-left); pop blend state and restore sRGB.
 
-Outcome: a 1920×1080 opaque sprite in the scene, sized by `get_width` / `get_height`. Edge case:
-presets that write alpha 0 come out transparent for screenshots and filters (`docs/concerns.md`).
+Outcome: an opaque sprite (alpha forced to 1.0, so alpha-0 presets no longer show through) that
+covers the full source size. A render scale below 100 % is upscaled by the effect's linear
+sampler; the scene layout does not change with the scale. `get_width` / `get_height`
+(`:1176-1184`) report the source size, so the scene item follows a size change live.
 
 ## 6. Teardown
 
-`visualizer_destroy` (`:240-251`) enters graphics, calls `sv_destroy` inside the guard if a
-context exists, destroys the texrender, leaves graphics. Safe when create failed.
+`visualizer_destroy` (`:1153-1174`), on libobs's destruction task thread:
+
+1. `unregister_hotkeys` (`:621-627`) first, so no hotkey callback runs afterwards.
+2. Under `audio_mutex`: `detach_audio_source`, `disconnect_audio_mix`.
+3. `stop_preset_worker` (`:644-658`): `preset_closing`, `os_task_queue_destroy` (drains and joins;
+   an in-flight prepare is dropped; up to about 0.4 s), free `ready_preset`. Before the graphics
+   lock, so rendering never waits on it.
+4. Under graphics: `sv_destroy` inside the guard if a context exists, destroy the texrender.
+
+Safe when create failed.
 
 **Analysis date:** 2026-11-23 (core `v0.7.0`, libobs 31.1.1, OBS 33.0.3).

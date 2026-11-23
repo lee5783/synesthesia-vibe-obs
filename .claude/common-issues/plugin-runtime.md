@@ -25,3 +25,22 @@
   always leaves `GL_TEXTURE0` active; the starting unit is whatever the host had active.
 - **How to verify this is still current:** run the visualizer next to an image, a colour and a text
   source, toggle them and switch scenes; the OBS log must stay free of GL error lines.
+
+## `sv_resize` writes the same unguarded state as `sv_render_frame`
+
+- **Symptom:** none so far. Listed so the next GL-state investigation does not miss it: after a
+  size or render-scale change, scissor is off, the colour mask is all-true and the clear colour is
+  the core's, outside what `gl_state_guard` restores.
+- **Root cause:** `sv_resize` rebuilds the core's frame targets (`FrameTargets`, `Framebuffer`,
+  `Texture`, `BlurChain`, `MotionInterpolator`) and clears them (`ClearFramebuffer`). The framebuffer
+  bindings, the active unit's 2D texture and the viewport it touches are guarded. Scissor, colour
+  mask and clear colour are not; `sv_render_frame` writes the same three every frame
+  (`blend_state.cpp` in the core). It is harmless only because libobs-opengl sets them on each use
+  without caching them. `sv_resize` runs inside the guard, before `gs_texrender_begin`
+  (`resize_core`, `plugin/src/visualizer-source.cpp`).
+- **Fix / workaround:** none needed today. If OBS ever starts caching scissor or colour mask, or a
+  draw after a resize shows clipped or colour-masked output, add them to `gl_state_guard` (two
+  `glGet`s and two restores). Re-check after every core bump.
+- **How to verify this is still current:** resize a visualizer next to image, colour and text
+  sources and compare their pixels before and after (P2-009 found them bit-identical), with 0 GL
+  error lines. The integrated check on the final build is part of the deferred P2-011 run.
