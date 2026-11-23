@@ -195,31 +195,47 @@ Phase 2 session's per-task write-ups are under
     overlapping core calls across threads. The race repro is a 5-minute screenshot loop
     (`GetSourceScreenshot` at about 19/s) with item toggles and hide/show while the source is on
     air. Pass: 0 overlaps. TSan is not available against release OBS.
-  - **Audio levels log** (`develop/evidence/P2-004/P2-004-add-audio-debug.py`): logs the core's
-    bass / mid / treble levels, so "reacts" and "silent" are numbers, not screenshots.
+  - **Audio levels log** (`develop/evidence/P2-011/P2-011-add-audio-debug.py` in the Phase 2
+    session): logs the core's bass / mid / treble levels, so "reacts" and "silent" are numbers,
+    not screenshots. It anchors on `remember_committed_preset`. The older
+    `P2-004-add-audio-debug.py` no longer applies: its `load_pending_preset` anchor is gone.
 - A forced-device-type scratch build exercised the renderer-refusal branch. A real Metal-renderer
   run is left to the user.
 - GL state: the SPK-006 audit snapshotted about 250 GL items around every core call with a
   temporary instrumented build. Its table is in `PLAN.md` (*GL state*). The committed evidence file
   records the active unit as `GL_TEXTURE7 → GL_TEXTURE0`; the 7 came from the guard of that time,
   not OBS. The core always leaves `GL_TEXTURE0` active. `sv_commit_preset`, `sv_resize` and
-  `sv_set_transition_config` were not part of that audit; the integrated GL-state check is
-  deferred (below).
+  `sv_set_transition_config` were not part of that audit; the integrated GL-state check on the
+  final build passed in the P2-011 run (below).
 
-**Planned, not yet run** (deferred by the user; see `docs/concerns.md`, *Deferred checks*):
-- **Done-when run on the integrated build** (P2-011): the GL-state check next to image, colour and
-  text sources with scene switches, projectors, multiview and filters and a second instance added
-  and removed; both audio paths; live settings; removal while audio is attached and a prepare is
-  in flight, then quit; the race stress repeated on the final build; the leak check on a normal
-  quit; the pkg install into OBS.
+**Done-when run, 2026-11-23** (P2-011, P2-012, P2-010b; production build of `4c260b5`, OBS
+33.0.3; reports under `develop/evidence/P2-011/`, `P2-012/` and `P2-010b/` in the Phase 2
+session). All passed, with 0 GL error lines and `Number of memory leaks: 0` on every quit:
+- **P2-011 Done-when run:** the load lines (TC-M03); GL state correct next to image, colour and
+  text sources across a scene switch, hide/show and a second instance added and removed; live
+  preset and transition changes; a 300 s race stress (5882 of 5882 screenshots,
+  `renderSkippedFrames` flat at 2); 6 removals with audio attached and a prepare queued; quit
+  150 ms after a preset request. Both audio paths reacted and went silent when they should
+  (scratch levels build, bass max 4.95 direct and 4.11 / 8.43 on the mix).
 - **1080p60** (P2-012): a dedicated `synesthesia-1080p60` profile (1920×1080, 60 fps) created over
   the websocket, the visualizer at 1920×1080 and 100 %, the audio fixture attached, auto-cycle at
-  10 s, 5 minutes of `GetStats` every 10 s. Pass: `activeFps` about 60, `renderSkippedFrames` flat,
-  `averageFrameRenderTime` well under 16.7 ms. If it fails, repeat at 75 % and 50 %. Switch back to
-  the user's profile afterwards and confirm with `GetProfileList`.
+  10 s, 30 `GetStats` samples over 5 minutes. `activeFps` 60 in every sample,
+  `averageFrameRenderTime` 3.75–8.60 ms (median 4.69 ms), 1 skipped frame in 17 446. 24 commits
+  in the window, the slowest 20.7 ms. 75 % and 50 % render scale were not needed. The user's
+  profile was restored and checked with `GetProfileList`.
 - **P2-010b dialog check:** a visualizer with only `preset_folder` set; `OpenInputPropertiesDialog`;
-  after about 1 s `GetInputSettings` must still show `preset: ""`, with "(first preset)" selected
-  in a screenshot. Do not remove that source while its dialog is open.
+  1.5 s later `GetInputSettings` still showed only `preset_folder`, with "(first preset)" selected
+  in a `screencapture -l` shot. The user closed the dialog before the source was removed.
+- **Projectors, multiview and filters** (a follow-up P2-011 session): colour correction, crop and
+  sharpen filters on the visualizer and a colour filter on the image drew correctly. A source
+  projector, a multiview and a program projector, all windowed, showed the visualizer animating.
+  60 s of scene switches and hide/show with all three open: 0 skipped frames in 1969, average render
+  time about 10.6 ms. Opening projectors needs the user to close them; OBS has no websocket request
+  for that, and windows can end up behind other apps.
+
+**Still open** (see `docs/concerns.md`, *Open checks*): the pkg install into OBS (TC-M04, P2-013),
+notarization (needs Developer ID credentials), Linux in OBS (P4-008, below) and the Phase 1
+loopback checklist.
 
 ## Mocking
 

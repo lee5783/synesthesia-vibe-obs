@@ -118,7 +118,7 @@ dlopen probe: RTLD_NOW | RTLD_LOCAL load succeeded and obs_module_load resolved
 | TC-R01, TC-R05 | A prerelease tag | A draft prerelease with the pkg, zip and checksums; `shasum` passes | Done (run 45146667649) |
 | TC-R02–R04 | Wrong or plain tags | Rejected before any build | Dry run of the validation logic (`P4-006`) |
 | TC-M01, TC-M02 | This Mac | Fresh configure passes; the guard refuses wrong generators | Done |
-| TC-M03 | OBS usable with obs-websocket | The plugin still loads in OBS after the loader split | **Deferred** (C-024, with P2-011) |
+| TC-M03 | OBS usable with obs-websocket | The plugin still loads in OBS after the loader split | **Pass** (2026-11-23 follow-up): `renderer check passed (OpenGL, device type 1)`, `sv_init_gl and sv_create succeeded`, 0 GL errors, `Number of memory leaks: 0` (`develop/evidence/P4-003-obs-smoke.md`) |
 | TC-L01–L08 | An Ubuntu 24.04 machine, X11 and Wayland | Install, render, audio, settings, teardown, uninstall; Flatpak refused | **User's task P4-008, not run.** Linux stays off releases until it passes |
 
 ## Review
@@ -165,8 +165,8 @@ dlopen probe: RTLD_NOW | RTLD_LOCAL load succeeded and obs_module_load resolved
 - **Linux is untested in OBS.** P4-008 is your Ubuntu 24.04 X11 and Wayland test. When it passes, attach the `.deb` to releases (a one-line switch in `release.yaml`).
 - **Linux OBS minimum.** It is whatever the PPA ships on the build day, 32.2.0 now. The `.deb`'s `Depends: obs-studio` has no version, so apt won't enforce it. Flatpak OBS is not supported.
 - **The Launchpad PPA has intermittent 503s.** Retries cover short outages. A long outage fails the Linux job clearly; re-run it.
-- **Releases are prerelease-only and not notarized** while Phase 2's Done-when checks (P2-010b, P2-011, P2-012) are open and there is no Developer ID. The macOS loader-split smoke test in OBS (TC-M03) waits with P2-011.
-- **Most of the core builds at `-O0`** (C-029): 65 of 75 compile units have no `-O` flag. This may matter for the 1080p60 check P2-012. Upstream ask #7 is drafted in `docs/concerns.md`, not filed.
+- **Releases are prerelease-only and not notarized.** There is no Developer ID yet, and the pkg install into OBS (TC-M04) is unverified. Phase 2's Done-when checks (P2-010b, P2-011, P2-012) and the TC-M03 smoke test passed in a 2026-11-23 follow-up run on this branch's build; the evidence is in the Phase 2 session's `develop/evidence/`.
+- **Most of the core builds at `-O0`** (C-029): 65 of 75 compile units have no `-O` flag. The 1080p60 check P2-012 still passed (60 fps held, 1 skipped frame in 17 446). Upstream ask #7 is drafted in `docs/concerns.md`, not filed.
 - **Not in this PR:** Windows (Phase 3, blocked) and a universal macOS binary (C-025).
 - **Cache cleanup.** The throwaway tag left about 455 MiB of tag-scoped Actions caches. They expire after 7 days unused.
 

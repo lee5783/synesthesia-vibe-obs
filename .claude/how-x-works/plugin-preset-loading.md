@@ -105,7 +105,8 @@ core.
 `sv_commit_preset` inside `with_core_gl_state`, free the handle, then on success
 `remember_committed_preset` (history of 50, no consecutive duplicates) and `preset committed: …
 (blend … s, … ms)`. On failure `preset_target` is cleared, so the next pick commits as a hard cut.
-Commit costs 0.9–3 ms for most presets and up to 17.8 ms for heavy ones (GL program build).
+Commit costs 0.9–3 ms for most presets and up to 17.8 ms for heavy ones (GL program build); at
+1080p60 (P2-012) commits reached 20.7 ms with only 1 skipped frame in 17 446.
 
 ## 7. Teardown
 

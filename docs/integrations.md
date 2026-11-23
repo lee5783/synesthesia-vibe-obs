@@ -282,7 +282,7 @@ To bump an action:
   deleted.
 - User-facing download and checksum steps: `plugin/README.md`, *Download*. No release has been
   published yet, and the pkg install into OBS is not verified end to end
-  (`docs/concerns.md`, *Deferred checks*).
+  (`docs/concerns.md`, *Open checks*).
 
 ## Local build and install
 

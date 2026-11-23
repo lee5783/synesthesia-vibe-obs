@@ -45,11 +45,12 @@
   dialog dirty and applies the change live. The removal closes the dialog, which finds unsaved
   changes and waits on the prompt while still holding a reference to the source.
 - **Which visualizer states still dirty the dialog** (analysis 2026-11-23):
-  - **A folder-only source (folder set, `preset` empty) no longer does, after P2-010b, pending OBS
-    confirmation.** The Preset list now starts with "(first preset)" whose value is `""`, so the
-    stored empty value matches item 0 (`preset_folder_modified`,
-    `plugin/src/visualizer-source.cpp`). The fix is built and reviewed but its OBS check was
-    deferred: until that check passes, treat a folder-only source as unsafe too.
+  - **A folder-only source (folder set, `preset` empty) no longer does (P2-010b).** The Preset
+    list starts with "(first preset)" whose value is `""`, so the stored empty value matches
+    item 0 (`preset_folder_modified`, `plugin/src/visualizer-source.cpp`). Confirmed in OBS on
+    2026-11-23: 1.5 s after `OpenInputPropertiesDialog` the settings were unchanged. A dialog
+    made dirty some other way (the triggers below, or an unsaved edit) still wedges OBS on
+    removal, so close it first.
   - A stored `preset` whose file was later deleted or renamed: the dialog writes `""` and switches
     the source to the first preset.
   - An off-step `render_scale` (a value such as 60, set through the websocket): the dialog writes
@@ -61,13 +62,13 @@
   properties dialog could still be open; ask the user to close it first, or quit and relaunch OBS
   instead. If it does wedge, stop and ask the user to answer the prompts. There is no websocket or
   Apple Event way out.
-- **How to verify this is still current:** the deferred P2-010b check (`docs/testing.md`,
-  *Planned, not yet run*): create a visualizer with only `preset_folder` set, open its properties
-  dialog, and after about 1 s `GetInputSettings` must still show `preset: ""` with "(first
-  preset)" selected. Do **not** remove it while the dialog is open. Once that passes, update the
-  first bullet above to drop "pending OBS confirmation". To reproduce the wedge itself, use one of
-  the remaining triggers, e.g. a stored `preset` naming a deleted file, then `RemoveInput` and
-  check `GetInputList` after 1 s, and be ready to ask the user to answer the prompts.
+- **How to verify this is still current:** repeat the P2-010b check (`docs/testing.md`,
+  *Done-when run, 2026-11-23*): create a visualizer with only `preset_folder` set, open its
+  properties dialog, and after about 1 s `GetInputSettings` must still show no `preset` written,
+  with "(first preset)" selected. Do **not** remove it while the dialog is open. To reproduce the
+  wedge itself, use one of the remaining triggers, e.g. a stored `preset` naming a deleted file,
+  then `RemoveInput` and check `GetInputList` after 1 s, and be ready to ask the user to answer
+  the prompts.
 
 ## `RemoveInput` on a source in a scene that is not rendering leaves it alive
 

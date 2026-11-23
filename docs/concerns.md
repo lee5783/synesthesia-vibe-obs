@@ -3,16 +3,17 @@
 **Analysis Date:** 2026-11-23
 
 `plugin/` holds the Phase 2 macOS plugin: tasks 1–6 are built and reviewed, packaging is partly
-done (ad-hoc pkg and zip, no notarization), and three verification runs are deferred (see
-*Deferred checks*). Phase 4 added CI, a draft-prerelease release pipeline and an experimental
-Linux x86_64 build that has never run in OBS. Gotchas with a quick workaround are in
+done (ad-hoc pkg and zip, no notarization). Its OBS checks (P2-011, P2-012, P2-010b) passed on
+2026-11-23; the pkg install into OBS is still open (*Open checks*). Phase 4 added CI, a
+draft-prerelease release pipeline and an experimental Linux x86_64 build that has never run in
+OBS. Gotchas with a quick workaround are in
 `.claude/COMMON-ISSUES.md`. Phases, risks and the filed-or-not state of upstream asks #1–#3 and
 #5 are in `PLAN.md`; #4, #6 and #7 are drafted below.
 
 ## Fixed in Phase 2
 
-Listed so nobody chases them again. Each was verified per task in OBS 33.0.3; the integrated
-re-check is part of the deferred P2-011 run.
+Listed so nobody chases them again. Each was verified per task in OBS 33.0.3 and again together
+on the final build in the P2-011 run (2026-11-23).
 
 - **`sv_context` race between `video_tick` and an off-thread `video_render`.** The tick writes only
   atomics; every `sv_*` call runs in `video_render` or under `obs_enter_graphics`. A scratch
@@ -176,7 +177,8 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
 
 **Settings the dialog rewrites on open:**
 - OBS writes a list setting when the dialog opens if its stored value matches no item, which marks
-  the dialog dirty and applies the change live. Remaining triggers after P2-010b:
+  the dialog dirty and applies the change live. A folder-only source no longer does (P2-010b,
+  confirmed in OBS on 2026-11-23). Remaining triggers:
   - `render_scale` is clamped to 50–100 but not snapped to 50 / 75 / 100. A value such as 60, set
     through the websocket, renders at 60 %; opening the dialog writes 100 (N2).
   - `audio_mix_track` outside 1–6 clamps on read; the dialog shows and writes Track 1.
@@ -274,12 +276,14 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
 **Preset commit on the graphics thread:**
 - `sv_commit_preset` builds the GL programs and must run on the GL thread. Measured on an M1:
   0.9–3 ms for most presets, up to **17.8 ms** for glowsticks. That is inside the 33 ms budget at
-  30 fps but over the 16.7 ms budget at 60 fps, so a heavy preset change will likely skip a frame
-  at 60 fps.
+  30 fps but over the 16.7 ms budget at 60 fps.
+- At 1080p60 (P2-012, 2026-11-23) commits reached 20.7 ms (24 commits in 5 minutes, auto-cycle
+  every 10 s with a 2.7 s blend), yet only 1 frame in 17 446 was skipped and `activeFps` held 60.
+  A heavy commit costs at most an occasional frame; it does not stall the renderer.
 - A blend renders two presets at once. One unsampled 150 s run right after an OBS launch showed
   +6 skipped frames during blends; five later windows showed 0.
-- Improvement path: inherent to the core's prepare / commit split. If P2-012 confirms it, an
-  upstream ask (incremental or cached program builds) or a documented limit; not a plugin fix.
+- Improvement path: inherent to the core's prepare / commit split. Low priority after P2-012; if
+  it ever matters, an upstream ask (incremental or cached program builds), not a plugin fix.
 
 **Creating a visualizer skips frames:**
 - `sv_init_gl` / `sv_create` and the first compile run in `create` under the graphics lock: about
@@ -293,7 +297,8 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
 **Plugin render cost:**
 - Median `averageFrameRenderTime` about 9–10 ms at the test canvas (30 fps), attached or not; the
   spike measured 4–7 ms with the synthetic tone. `gl_state_guard` adds about 20 µs per wrapped call.
-  **1080p60 is unmeasured** (P2-012 deferred).
+- At 1080p60, 1920×1080 at 100 % (P2-012): `averageFrameRenderTime` 3.75–8.60 ms (median
+  4.69 ms) against the 16.7 ms budget; render scale reduction was not needed.
 - `GetStats` on the OpenGL backend measures CPU-side submission, not GPU fill: it reads about 7 ms
   at 1080p, 4K and 8K at every render scale. Render scale's saving shows only when the GPU is
   saturated (8192×8192 at 100 %: 47 ms / 21 fps → 7 ms / 30 fps at 50 %).
@@ -308,7 +313,8 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
 - In the macOS inner build (`plugin/build_macos_arm64/synesthesia-vibe-core/build/build.ninja`),
   **65 of 75 compile units have no `-O` flag**; only 10 get `-O3`. So the core is mostly `-O0` in
   the plugin's Release builds, on Linux too.
-- This may matter for P2-012 (1080p60), where a heavy commit already takes about 18 ms.
+- It feeds the heavy-commit cost (up to 20.7 ms at 1080p60 in P2-012), which P2-012 showed costs
+  at most an occasional frame.
 - No plugin-side workaround is applied. Injecting `-O2` through `CMAKE_PROJECT_INCLUDE` would be
   possible, but it is the user's call. The fix belongs upstream: ask #7 below.
 
@@ -325,8 +331,11 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
   `sv_render_frame` and `sv_resize` both disable scissor and set the colour mask to all-true. That
   is "no net change" only because OBS's GL device sets them on each use. The SPK-006 audit
   covered `sv_create`, `sv_load_preset`, `sv_render_frame` and `sv_destroy`; `sv_commit_preset`,
-  `sv_resize` and `sv_set_transition_config` are guarded but were never audited. Projector,
-  multiview and filter paths were not exercised. The unit range follows `GS_MAX_TEXTURES` (8).
+  `sv_resize` and `sv_set_transition_config` are guarded but were never audited state by state;
+  the integrated P2-011 run (2026-11-23) showed other sources drawing correctly with 0 GL errors
+  on the final build, and a follow-up run showed the same with filters on the visualizer and a
+  source projector, a multiview and a program projector open. The unit range
+  follows `GS_MAX_TEXTURES` (8).
 - Safe modification: wrap every new GL-touching `sv_*` call in `with_core_gl_state`; re-run the
   audit on every core bump; guarding scissor and colour mask costs two `glGet`s.
 - Evidence caveat: the committed SPK-006 state-diff evidence records the active unit as
@@ -359,6 +368,12 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
   OBS's real Metal renderer returns from `gs_get_device_type()` was never observed (any value but
   OpenGL is refused, so correctness holds); loading a scene collection that already holds the
   source under refusal is untested.
+
+**Skipped frames around profile switches and source creation (low priority):**
+- In the P2-011 run, `renderSkippedFrames` rose by 13 (3 → 16) across the switch back from the
+  1080p60 profile, which resets video, plus six create/remove cycles; `create` holds the graphics
+  lock for `sv_init_gl` / `sv_create` (*Creating a visualizer skips frames* above). Not
+  attributed to either; no GL error or visible fault came with it. An observation, not a bug.
 
 **Preset name matching:**
 - Files: `browser-source/obs-page.js` (`findMatch`).
@@ -443,34 +458,21 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
   universal binary stayed out of Phase 4 and is a follow-up (C-025, *Tech Debt* above). Windows is
   Phase 3, and "each OS" in CI excludes it until then.
 
-## Deferred Checks
+## Open Checks
 
-The user deferred these OBS runs; Phase 2's *Done when* is not met until they pass. Ordered by how
-much the code makes them matter (Gate 2 review):
+Phase 2's OBS checks passed on 2026-11-23: the P2-011 Done-when run on the integrated build
+(including the TC-M03 smoke load of the Phase 4 loader split), the P2-012 1080p60 measurement and
+the P2-010b dialog check (`docs/testing.md`, *Done-when run, 2026-11-23*). Still open:
 
-1. **P2-012, 1080p60: matters most.** The 17.8 ms commit is over the 60 fps budget, and blends
-   render two presets. *Done when* item 1 ("renders at 1080p60 without stalling OBS's renderer")
-   is the criterion most likely to fail or need a caveat.
-2. **P2-011, GL-state check on the integrated build: high.** `sv_commit_preset`, `sv_resize` and
-   `sv_set_transition_config` sit outside the spike audit; scissor, colour mask and clear colour
-   stay unguarded. Per-task runs showed 0 GL errors and bit-identical other sources. Never run on
-   the final build: projectors, multiview, filters, and a second instance added and removed next
-   to image, colour and text sources.
-3. **P2-011, race stress plus combined teardown on the final build: medium-high.** Each piece was
-   stress-tested on its own (removal under prepare ×20, removal under hotkey fire, removal with
-   audio attached). Not run: removal while audio is attached **and** a prepare is in flight, then
-   quit; the 5-minute screenshot stress on the final build.
-4. **P2-011, leak check on a normal quit: medium.** The last clean `Number of memory leaks: 0` was
-   the P2-009 build. P2-010 / P2-010b changed only properties and defaults, but P2-010's session
-   ended in a SIGINT and a Qt abort (no plugin frames).
-5. **P2-013 pkg install into OBS: medium for the README, low for the code.** Install Option A, the
-   Gatekeeper steps, quarantine on the zip, `pkgutil --pkgs` / `--forget` against a real receipt
-   (and whether a `CurrentUserHomeDirectory` receipt needs `--volume ~`) are unverified end to end.
-6. **P2-010b dialog check: low code risk.** The fix follows OBS's own `count && idx == -1` rule
-   (checked in the 31.1.1 source), but the screenshot and the `GetInputSettings` check are still
-   mandatory before it counts as done.
+1. **P2-013 / TC-M04, pkg install into OBS: medium for the README, low for the code.** The
+   2026-11-23 runs used a dev install (`ditto`). Install Option A, the Gatekeeper steps,
+   quarantine on the zip, `pkgutil --pkgs` / `--forget` against a real receipt (and whether a
+   `CurrentUserHomeDirectory` receipt needs `--volume ~`) are unverified end to end.
+2. **Notarization:** waits on Developer ID credentials (*Missing Critical Features*).
+3. **Linux in OBS (P4-008):** X11 and Wayland on Ubuntu 24.04 (*Missing Critical Features*).
+4. **Phase 1 loopback checklist:** with the user (*Missing Critical Features*).
 
-How to run each: `docs/testing.md`, *Planned, not yet run*.
+How to run them: `docs/testing.md`.
 
 ## Upstream Ask Drafts (core repo)
 
@@ -522,10 +524,8 @@ builds the library from source can't fix this without patching it.
   checklist).
 
 **Plugin:**
-- Everything in *Deferred Checks*. Priority: High for P2-012 and the P2-011 GL-state check.
+- The pkg install into OBS (TC-M04, *Open Checks*). Priority: Medium.
 - The Linux build in OBS on X11 and Wayland (P4-008). Priority: High before Linux ships.
-- The macOS loader split (Phase 4) was checked by build plus an export/import diff only; the OBS
-  smoke load (TC-M03) is deferred with P2-011. Priority: Medium.
 - The plain `ubuntu-x86_64` preset (CI uses `ubuntu-ci-x86_64`). Priority: Low.
 - Real microphone and desktop-audio sources (10 ms chunks; only a Media Source was tested), the
   real Metal renderer, scene collections under refusal, relink after a core bump, two instances'

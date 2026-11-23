@@ -43,4 +43,5 @@
   `glGet`s and two restores). Re-check after every core bump.
 - **How to verify this is still current:** resize a visualizer next to image, colour and text
   sources and compare their pixels before and after (P2-009 found them bit-identical), with 0 GL
-  error lines. The integrated check on the final build is part of the deferred P2-011 run.
+  error lines. The integrated check on the final build passed in the P2-011 run (2026-11-23):
+  other sources drew correctly next to the visualizer and a second instance, 0 GL error lines.

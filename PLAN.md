@@ -1,11 +1,12 @@
 # SynesthesiaVibe for OBS — plan
 
 Status: **Phase 1 built**, awaiting the user's loopback checklist (BlackHole on macOS, VB-Cable on
-Windows) before it is marked done. **Phase 2 (macOS) built and reviewed**: tasks 1–6 are done;
-task 7 (packaging) is partly done, with an ad-hoc signed `.plugin`, an unsigned `.pkg` and a zip,
-and notarization waits on Developer ID credentials. Phase 2 is **not done**: its *Done when*
-checks are deferred (the 1080p60 run, the integrated Done-when run, and the OBS check of the
-"(first preset)" dialog fix). **Phase 4 (release and Linux) built and reviewed**: CI builds and
+Windows) before it is marked done. **Phase 2 (macOS) built, reviewed and checked in OBS**:
+tasks 1–6 are done, and its *Done when* checks passed on 2026-11-23 (the 1080p60 run, the
+integrated Done-when run and the OBS check of the "(first preset)" dialog fix). Task 7 (packaging)
+is partly done, with an ad-hoc signed `.plugin`, an unsigned `.pkg` and a zip. Notarization waits
+on Developer ID credentials and the pkg install into OBS is not verified yet, so Phase 2 is not
+closed. **Phase 4 (release and Linux) built and reviewed**: CI builds and
 checks macOS arm64 and Linux x86_64 on every PR, and a `v*` tag makes a draft prerelease with the
 macOS pkg, zip and checksums. Windows waits on Phase 3. Linux is experimental: built and checked
 in CI, not attached to releases until the user's Ubuntu X11/Wayland test. D1 and D4 are locked;
@@ -449,14 +450,21 @@ Xcode 27.2 and CMake 4.4.5.
 - Removing the source, or quitting OBS, leaks nothing and crashes nothing.
 - Other sources in the same scene still draw correctly (the GL-state check).
 
-**Done-when state (2026-11-23):** not met. The user deferred these checks; each was verified per
-task on intermediate builds, but not on the final integrated build:
+**Done-when state (2026-11-23):** met on the final integrated build (production build of
+`4c260b5`, OBS 33.0.3, Apple Silicon). Evidence is under the Phase 2 session's
+`develop/evidence/P2-011/`, `P2-012/` and `P2-010b/`.
 
-- **Deferred:** the 1080p60 measurement in a dedicated profile (P2-012).
-- **Deferred:** the Done-when run on the integrated build (P2-011): the GL-state check, both audio
-  paths, live settings, removal and quit with no leaks, and the race stress test.
-- **Deferred:** the OBS check of the "(first preset)" fix that stops the properties dialog from
-  saving `preset` when it opens (P2-010b). The fix is built and reviewed.
+- **Passed:** the 1080p60 measurement in a dedicated profile (P2-012). `activeFps` was 60 in all
+  30 samples and `averageFrameRenderTime` was 3.75–8.60 ms (median 4.69 ms). 1 frame was skipped
+  in 17 446, and the slowest of 24 commits took 20.7 ms. Render scale reduction was not needed.
+- **Passed:** the Done-when run on the integrated build (P2-011). It covered the GL-state check,
+  both audio paths, live settings, removal and quit (`Number of memory leaks: 0` on every quit)
+  and a 300 s race stress test, with 0 GL error lines. A follow-up session added filters, a source
+  projector, a multiview and a program projector: all drew correctly, 0 skipped frames in 60 s.
+- **Passed:** the OBS check of the "(first preset)" fix (P2-010b). Opening the properties dialog
+  on a folder-only source no longer saves `preset`.
+- **Still open for Phase 2:** notarization (Developer ID credentials) and the pkg install into OBS
+  (TC-M04).
 
 ## Phase 3 — Native plugin, Windows (large, blocked)
 

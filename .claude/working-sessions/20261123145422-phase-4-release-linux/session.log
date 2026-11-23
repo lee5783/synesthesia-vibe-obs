@@ -38,3 +38,15 @@
 2026-11-23T09:57:07Z  orchestrator  CI run 45150243042 (f57bf4e, review fixes): macOS + Linux success
 2026-11-23T10:00:34Z  orchestrator  Gate 3 docs pass accepted (docs/ 7 pages, common-issues, how-x-works release-pipeline + citation shifts, PLAN.md status/Phase 4/risk/ask #7 pointer, CLAUDE.md Setup Linux line); orchestrator hygiene scan clean. Gate 4 asked
 2026-11-23T10:06:57Z  orchestrator  Gate 4: user chose template + update PR #3 (stays draft); docs/README.md index refresh approved and done; output-pull-request.md written; committing, pushing, updating PR #3 body
+2026-11-23T10:07:08Z  orchestrator  committed 4c260b5, pushed, PR #3 body/title updated (draft, base feature/plugin-phase-2-macos). Run complete.
+2026-11-23T11:35:38Z  orchestrator  user reopened OBS: start the deferred OBS retest (TC-M03, Phase 2 checks)
+2026-11-23T11:43:00Z  orchestrator  retest: user authorised graceful OBS quit/relaunch; quitting OBS to dev-install
+2026-11-23T11:53:11Z  orchestrator  retest: P2-012 1080p60 in separate profile synesthesia-1080p60 (C-001)
+2026-11-23T12:00:17Z  orchestrator  retest: session A passed (leaks 0); installed scratch audio-debug build for session B (source restored from git)
+2026-11-23T12:02:37Z  orchestrator  retest: P2-010b dialog check - opening properties dialog on RT Viz Dialog (user must close it)
+2026-11-23T12:15:47Z  orchestrator  retest: all OBS checks passed (TC-M03, P2-011, P2-012, P2-010b); evidence written; delegating doc sync to document-writer
+2026-11-23T12:15:57Z  document-writer  start OBS retest doc sync (packet input-docs-obs-retest.md)
+2026-11-23T12:18:21Z  document-writer  done: synced docs/ and .claude caches for OBS retest; report output-doc-sync-obs-retest.md
+2026-11-23T12:20:28Z  orchestrator  retest: user approved PLAN.md text (applied) and a projector/multiview/filter run; reinstalling production build
+2026-11-23T12:55:09Z  orchestrator  retest: projectors left open behind other windows; user chose cleanup then quit OBS to close them
+2026-11-23T12:56:10Z  orchestrator  retest: session C (projectors/multiview/filters) passed, leaks 0; docs, PLAN.md and PR body updated; committing
