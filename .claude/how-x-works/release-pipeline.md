@@ -71,7 +71,8 @@ Job `release` (`R:92-172`) needs `validate` and `build`. It is the only job with
 3. *Write release notes* (`R:126-156`): an unquoted heredoc, with backticks escaped and `TAG`
    already regex-checked. It covers:
    - the downloads list, with `shasum -a 256 --ignore-missing -c SHA256SUMS.txt`;
-   - the ad-hoc / unnotarized warning, linking `plugin/README.md` at the tag;
+   - the Gatekeeper note, linking `plugin/README.md` at the tag: "signed with a Developer ID and
+     notarized" when `MACOS_NOTARIZE` is `true`, otherwise the ad-hoc / unnotarized warning;
    - the Linux status;
    - the licences;
    - links to this tag's tree and to the core tag's tree;
@@ -98,4 +99,5 @@ Job `release` (`R:92-172`) needs `validate` and `build`. It is the only job with
   The macOS job then uses the `macos-signing` environment. It imports the certificate, builds
   signed, then productsigns, notarizes and staples the pkg before *Archive*, and inspects for
   `source=Notarized Developer ID`. Secrets and steps: `docs/integrations.md`, *Signing and
-  notarization*.
+  notarization*. A team's first notarization can outlast the 45-minute wait; re-run the job once
+  Apple reports the submission Accepted (`.claude/common-issues/plugin-build.md`).

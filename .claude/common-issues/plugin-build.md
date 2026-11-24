@@ -154,3 +154,37 @@
   - Locally, `apt-cache policy obs-studio` must show an `obsproject` candidate before you build.
 - **How to verify this is still current:** the job's log shows `apt-cache policy obs-studio` and
   the `obs-studio package:` line; a healthy run has `…obsproject…` in both.
+
+## Signed tag build fails "the certificate file must hold exactly one Developer ID Application and one Developer ID Installer identity"
+
+- **Symptom:** *Import signing certificate* fails with that error. The identities it prints show
+  the Application identity alone, or next to `Apple Development: …` instead of
+  `Developer ID Installer: …`.
+- **Root cause:** the `MACOS_SIGNING_CERT` `.p12` lacks the Installer identity. Keychain Access
+  exports it wrongly when the Installer certificate shares its private key with other
+  certificates (one CSR reused for several certificates): it pairs the key with another
+  certificate. Deleting the unwanted identity from a copy of the keychain deletes the shared key,
+  so the Installer goes with it.
+- **Fix / workaround:**
+  - Check before uploading: `openssl pkcs12 -in <file>.p12 -nokeys | grep subject=` must show
+    `CN=Developer ID Application` and `CN=Developer ID Installer`.
+  - Compare keys with `security find-certificate -c "<name>" -p | openssl x509 -noout -pubkey |
+    openssl sha256` for each certificate. If the Installer shares a key, make a new Developer ID
+    Installer certificate from a fresh CSR, export the two Developer ID identities, and revoke
+    the old Installer.
+  - A secret whose value is `1` masks every `1` in the logs; use a real export password.
+- **How to verify this is still current:** first hit on 2026-11-23; the import step prints the
+  identities it found.
+
+## Signed tag build fails "submission … was still in progress after 45 minutes"
+
+- **Symptom:** *Sign and notarize* waits 45 minutes, then fails naming a submission id (before
+  2026-11-24 the message was `notarization status 'none'`).
+- **Root cause:** Apple took longer than the wait. A team's first notarization can take hours;
+  later ones take seconds (the first submission on 2026-11-23 needed over 45 minutes, the next
+  20 seconds).
+- **Fix / workaround:** the submission keeps going at Apple. Check it with
+  `xcrun notarytool info <id> --apple-id <APPLE_ID> --team-id <TEAM_ID>` and re-run the failed
+  macOS job once it reports `Accepted`. The re-run submits a fresh pkg.
+- **How to verify this is still current:** the step's log shows the `notarytool submit` JSON with
+  the id.

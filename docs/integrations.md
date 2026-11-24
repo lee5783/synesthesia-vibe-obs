@@ -95,13 +95,12 @@
 ## Authentication & Identity
 
 **Auth Provider:**
-- None. Code signing is ad-hoc (`CODESIGN_IDENT` / `CODESIGN_TEAM` unset), with the hardened
-  runtime flag on non-Debug builds (`xcode.cmake`); OBS loads ad-hoc plugins because `OBS.app`
-  carries `disable-library-validation`. The pkg is unsigned. Developer ID signing and
-  notarization are documented below and wait on credentials the user supplies out of band
-  (C-002).
-- CI authenticates only with the workflow's own `github.token` (the release job's `gh` call). No
-  workflow reads `secrets.*`.
+- None for local builds. Code signing is ad-hoc (`CODESIGN_IDENT` / `CODESIGN_TEAM` unset), with
+  the hardened runtime flag on non-Debug builds (`xcode.cmake`); OBS loads ad-hoc plugins because
+  `OBS.app` carries `disable-library-validation`. The local pkg is unsigned. Tag builds sign with
+  Developer ID and notarize (*Signing and notarization*).
+- CI authenticates with the workflow's own `github.token` (the release job's `gh` call). Only the
+  macOS job of a signed tag build reads secrets, from the `macos-signing` environment.
 
 ## Monitoring & Observability
 
@@ -179,7 +178,8 @@ steps.
 - **Security posture:**
   - Every workflow has top-level `permissions: contents: read`; only the `release` job gets
     `contents: write`.
-  - No `secrets.*`.
+  - Only the macOS job of a signed tag build reads `secrets.*`, from the `macos-signing`
+    environment, which accepts only `v*` tags. PR and `master` builds read none.
   - Every checkout sets `persist-credentials: false`.
   - The PR trigger is `pull_request`, never `pull_request_target`, so fork PRs get a read-only
     token and no secrets.
@@ -269,7 +269,8 @@ To bump an action:
     - update `plugin/README.md` (*Download*, *Linux*).
 - **Notes**, generated in the job:
   - the downloads, with `shasum -a 256 --ignore-missing -c SHA256SUMS.txt`;
-  - the ad-hoc / unnotarized warning, linking `plugin/README.md` at the tag;
+  - the Gatekeeper note, linking `plugin/README.md` at the tag: "signed with a Developer ID and
+    notarized" when `MACOS_NOTARIZE` is `true`, otherwise the ad-hoc / unnotarized warning;
   - the Linux status;
   - GPL-2.0-or-later plus the MIT core;
   - links to this tag's tree and to the core tag's tree;
@@ -505,7 +506,8 @@ nm -gU synesthesia-vibe-obs.plugin/Contents/MacOS/synesthesia-vibe-obs
 spctl --assess -vv --type install synesthesia-vibe-obs.pkg
 ```
 
-Expected while unnotarized: `Status: no signature` for the pkg; `Signature=adhoc`,
+Expected for a local ad-hoc build (CI checks a signed tag build, *Signing and notarization*):
+`Status: no signature` for the pkg; `Signature=adhoc`,
 `flags=0x10002(adhoc,runtime)` and a valid deep/strict verify for the bundle; arm64 only; the 7
 exports; `spctl` rejects the pkg (`source=no usable signature`). `--payload-files` may list `._*`
 entries on a machine that stamps `com.apple.provenance` on build outputs; they merge back into
@@ -516,8 +518,8 @@ A user-style install of the built pkg needs the user's approval:
 
 ## Signing and notarization
 
-Not run yet: it needs a Developer ID Application and a Developer ID Installer identity and a
-notary profile, which the user supplies outside the repo. Credentials never go into the repo or
+Tag builds sign and notarize in CI (below). Locally it needs a Developer ID Application and a
+Developer ID Installer identity and a notary profile, which the user supplies outside the repo. Credentials never go into the repo or
 into a session file. The presets read `CODESIGN_IDENT` / `CODESIGN_TEAM` from the environment;
 `xcode.cmake` then signs with that identity, hardened runtime and `--timestamp` for Release. Every
 `<…>` is a placeholder.
@@ -545,10 +547,11 @@ xcrun stapler staple synesthesia-vibe-obs.plugin
 ditto -c -k --norsrc --noextattr --keepParent synesthesia-vibe-obs.plugin synesthesia-vibe-obs-0.1.0-macos-arm64.zip
 ```
 
-Unverified: whether `stapler` staples a `.plugin` bundle (it does for apps, pkgs and dmgs). If it
-refuses, ship the zip unstapled; Gatekeeper then checks the ticket online.
+`stapler` staples the `.plugin` bundle too: `stapler validate` passed on the bundle from the
+`v0.1.0-beta.1` zip.
 
-**In CI (C-018).** Built, not yet run with real credentials.
+**In CI (C-018).** First signed run: `v0.1.0-beta.1` on 2026-11-24. The pkg passed `spctl` as
+`source=Notarized Developer ID`, and `stapler validate` passed on the pkg and on the zip's bundle.
 - `build-plugin.yaml` takes a `sign` input, false by default. `ci.yaml` never sets it, so PR and
   `master` builds stay ad-hoc and read no secret. `release.yaml` sets it when the Actions variable
   `MACOS_NOTARIZE` is `true`, and calls the build with `secrets: inherit`. Without that, the
@@ -561,6 +564,9 @@ refuses, ship the zip unstapled; Gatekeeper then checks the ticket online.
   - `MACOS_SIGNING_CERT_PASSWORD`: the `.p12` export password.
   - `MACOS_NOTARIZATION_USERNAME`: the Apple ID; `MACOS_NOTARIZATION_PASSWORD`: an app-specific
     password for it.
+- The `.p12` must hold the Developer ID Application and the Developer ID Installer identity, each
+  with its own private key. Keychain Access exports the wrong certificate when two certificates
+  share one key (one CSR reused); see `.claude/common-issues/plugin-build.md`.
 - *Import signing certificate*, before *Configure*:
   - imports the `.p12` into a temporary keychain with a random password;
   - requires exactly one Developer ID Application and one Installer identity sharing one team ID;
@@ -568,7 +574,8 @@ refuses, ship the zip unstapled; Gatekeeper then checks the ticket online.
     two, so Xcode signs with the hardened runtime and `--timestamp`.
 - *Sign and notarize*, between *Package* (`cmake --install`) and *Archive*:
   1. `productsign` the pkg;
-  2. `notarytool submit --wait` (on failure it prints `notarytool log` and stops);
+  2. `notarytool submit --wait --timeout 45m`. On a rejection it prints `notarytool log` and
+     stops; on a timeout it names the submission, which Apple keeps processing;
   3. `stapler staple` the pkg;
   4. try to staple the `.plugin`. If that fails it only warns, and Gatekeeper checks the zip's
      bundle online.
@@ -578,8 +585,8 @@ refuses, ship the zip unstapled; Gatekeeper then checks the ticket online.
   - requires `spctl --assess --type install` to report `source=Notarized Developer ID`;
   - runs `stapler validate` on the pkg.
 - *Remove signing keychain* always runs at the end.
-- The environment should allow only `v*` tags (*Deployment branches and tags*), so no branch or
-  PR run can read the secrets.
+- The environment allows only `v*` tags (*Deployment branches and tags*, set 2026-11-24), so no
+  branch or PR run can read the secrets.
 - The release notes switch to the "signed and notarized" wording when `MACOS_NOTARIZE` is `true`.
 
 ## Environment Configuration
@@ -596,11 +603,11 @@ refuses, ship the zip unstapled; Gatekeeper then checks the ticket online.
 
 **Repository settings (GitHub):**
 - Actions variable `RELEASE_FINAL_ALLOWED`: `true` lets a plain `vX.Y.Z` tag make a (draft,
-  non-prerelease) release. Unset today.
+  non-prerelease) release. `true` since 2026-11-24 (0.1.0).
 - Actions variable `MACOS_NOTARIZE`: `true` makes tag builds sign with Developer ID and notarize.
-  Unset today.
+  `true` since 2026-11-23.
 - Environment `macos-signing`: holds the four signing secrets (*Signing and notarization*).
-  Restrict it to `v*` tags.
+  Restricted to `v*` tags.
 
 **Secrets location:**
 - None in the repo. Only the macOS job of a signed tag build reads secrets, from the

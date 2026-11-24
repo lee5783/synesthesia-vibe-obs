@@ -225,6 +225,10 @@ jobs:
           cat notary-result.json
           submission_id="$(jq -r '.id // empty' notary-result.json)"
           status="$(jq -r '.status // empty' notary-result.json)"
+          if [[ -z "${status}" && -n "${submission_id}" ]]; then
+            echo "::error::submission ${submission_id} was still in progress after 45 minutes; Apple keeps processing it. Re-run this job once 'notarytool info ${submission_id}' reports Accepted"
+            exit 1
+          fi
           if [[ "${status}" != "Accepted" ]]; then
             if [[ -n "${submission_id}" ]]; then
               xcrun notarytool log "${submission_id}" \

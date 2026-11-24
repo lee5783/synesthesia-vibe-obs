@@ -2,8 +2,8 @@
 
 **Analysis Date:** 2026-11-23
 
-`plugin/` holds the Phase 2 macOS plugin: tasks 1–6 are built and reviewed, packaging is partly
-done (ad-hoc pkg and zip, no notarization). Its OBS checks (P2-011, P2-012, P2-010b) passed on
+`plugin/` holds the Phase 2 macOS plugin: tasks 1–6 are built and reviewed, packaging is done in CI:
+tag builds sign with Developer ID and notarize (first run `v0.1.0-beta.1`, 2026-11-24). Its OBS checks (P2-011, P2-012, P2-010b) passed on
 2026-11-23; the pkg install into OBS is still open (*Open checks*). Phase 4 added CI, a
 draft-prerelease release pipeline and an experimental Linux x86_64 build that has never run in
 OBS. Gotchas with a quick workaround are in
@@ -228,23 +228,26 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
 
 ## Security Considerations
 
-**Unsigned pkg, ad-hoc plugin:**
-- Risk: users must override Gatekeeper to install, which trains them to click through warnings.
-- Current mitigation: `plugin/README.md` explains the per-macOS-version override; the CLI
-  `installer -target CurrentUserHomeDirectory` needs no admin rights. Notarization is documented
-  and waits on Developer ID credentials (C-002).
+**Signing keys:**
+- Release pkgs and plugins are Developer ID signed and notarized, so users need no Gatekeeper
+  override. Local builds stay ad-hoc with an unsigned pkg.
+- Risk: the Developer ID keys sit in the `macos-signing` environment's secrets.
+- Current mitigation: the environment accepts only `v*` tags, and only the macOS job of a signed
+  tag build reads it. The `.p12` should hold only the two Developer ID identities, each with its
+  own key, so a leak cannot sign as the account's other certificates.
 
 **CI and release pipeline:**
 - Risk: a pushed tag produces release binaries, and a fork PR runs repo workflows.
 - Current mitigation:
-  - Only the release job has `contents: write`. No workflow reads `secrets.*`.
+  - Only the release job has `contents: write`. Only the macOS job of a signed tag build reads
+    secrets, from the `macos-signing` environment.
   - Fork PRs run under `pull_request`, with a read-only token, `persist-credentials: false`, and
     caches scoped to the PR, which a tag run cannot read.
   - Event values reach scripts only through `env:`. The buildspec `name` and `version` are
     validated before they reach `GITHUB_ENV`.
   - Every release is a draft that a person publishes; final tags need `RELEASE_FINAL_ALLOWED`.
-- Keep it that way: switching to `pull_request_target` or adding secrets to the shared build
-  workflow would undo most of this (`docs/integrations.md`, *CI/CD & Deployment*).
+- Keep it that way: switching to `pull_request_target` or reading secrets on a PR or `master`
+  path of the shared build workflow would undo most of this (`docs/integrations.md`, *CI/CD & Deployment*).
 
 **User input in the plugin:**
 - The folder path only selects files through `os_opendir`; it reaches only `sv_prepare_preset` and
@@ -434,11 +437,8 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
   inside OBS are pending with the user. Phase 1 is not done until they report back.
 
 **Notarization (Phase 2 task 7):**
-- The release is ad-hoc signed and unnotarized until the user supplies Developer ID credentials.
-  The CI job is built: tag builds sign and notarize once the `macos-signing` environment holds
-  the secrets and `MACOS_NOTARIZE` is `true` (`docs/integrations.md`, *Signing and notarization*).
-  It has not run with real credentials yet. Whether `stapler` accepts a `.plugin` bundle is still
-  unverified; the job only warns if it does not.
+- Done in CI: tag builds sign and notarize, and `stapler` staples both the pkg and the `.plugin`
+  (first run `v0.1.0-beta.1`, 2026-11-24; `docs/integrations.md`, *Signing and notarization*).
 
 **Linux in OBS (P4-008):**
 - The Linux `.so` and `.deb` are built and checked in CI (exports, PIC, `ldd`, `dlopen`, package
@@ -467,12 +467,11 @@ Phase 2's OBS checks passed on 2026-11-23: the P2-011 Done-when run on the integ
 the P2-010b dialog check (`docs/testing.md`, *Done-when run, 2026-11-23*). Still open:
 
 1. **P2-013 / TC-M04, pkg install into OBS: medium for the README, low for the code.** The
-   2026-11-23 runs used a dev install (`ditto`). Install Option A, the Gatekeeper steps,
-   quarantine on the zip, `pkgutil --pkgs` / `--forget` against a real receipt (and whether a
+   2026-11-23 runs used a dev install (`ditto`). Install Options A and B from a notarized
+   release, OBS loading the quarantined zip bundle, `pkgutil --pkgs` / `--forget` against a real receipt (and whether a
    `CurrentUserHomeDirectory` receipt needs `--volume ~`) are unverified end to end.
-2. **Notarization:** waits on Developer ID credentials (*Missing Critical Features*).
-3. **Linux in OBS (P4-008):** X11 and Wayland on Ubuntu 24.04 (*Missing Critical Features*).
-4. **Phase 1 loopback checklist:** with the user (*Missing Critical Features*).
+2. **Linux in OBS (P4-008):** X11 and Wayland on Ubuntu 24.04 (*Missing Critical Features*).
+3. **Phase 1 loopback checklist:** with the user (*Missing Critical Features*).
 
 How to run them: `docs/testing.md`.
 

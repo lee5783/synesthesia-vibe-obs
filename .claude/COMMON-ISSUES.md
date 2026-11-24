@@ -9,7 +9,7 @@ touching, via `Read`/`Grep`, same as any other file.
 
 | Area | Read |
 |---|---|
-| Plugin build, packaging, CI and core submodule (template build-number bug and the CI seed skip, build-guard message, `release`/`Release` collision, quoted pkg receipt id, `._` payload entries, `git submodule status` tag label, Linux GNU ld archive-order link error, PPA 503 / distro-OBS fallback in Linux CI) | [`common-issues/plugin-build.md`](common-issues/plugin-build.md) |
+| Plugin build, packaging, CI and core submodule (template build-number bug and the CI seed skip, build-guard message, `release`/`Release` collision, quoted pkg receipt id, `._` payload entries, `git submodule status` tag label, Linux GNU ld archive-order link error, PPA 503 / distro-OBS fallback in Linux CI, `.p12` missing the Installer identity, first notarization outlasting the 45-minute wait) | [`common-issues/plugin-build.md`](common-issues/plugin-build.md) |
 | Plugin runtime in OBS (GL state cache desync, `gl_state_guard`, unguarded state written by `sv_resize`) | [`common-issues/plugin-runtime.md`](common-issues/plugin-runtime.md) |
 | Browser Source in OBS (macOS mic permission → `NotFoundError`, first-run blank source) | [`common-issues/browser-source.md`](common-issues/browser-source.md) |
 | Verification tooling (Chrome fake audio silent, `osascript` quit -128, properties dialog open during removal wedges OBS, `RemoveInput` in a non-rendering scene leaves the source alive) | [`common-issues/verification-tooling.md`](common-issues/verification-tooling.md) |
