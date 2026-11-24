@@ -14,8 +14,6 @@ directly. You need no loopback device, no local server and no command-line flag.
   is experimental and untested in OBS ([Linux](#linux-experimental-untested-in-obs)).
 - OBS must use its **OpenGL** renderer. On any other renderer the source does not appear (see
   [Troubleshooting](#troubleshooting)).
-- The release is not notarized by Apple yet, so macOS warns when you open the installer. See
-  [Step 1](#step-1-install-the-plugin).
 - No presets come with the plugin. You choose a folder of `.milk` presets
   ([Presets](#presets-where-to-get-them-and-their-terms)).
 - All visualizers in one OBS share their audio analysis
@@ -60,11 +58,11 @@ Each release has three files, where `<version>` is the plugin version (for examp
 | `synesthesia-vibe-obs-<version>-macos-arm64.zip` | The same plugin bundle for a manual install ([Option B](#option-b-the-zip)). |
 | `SHA256SUMS.txt` | The SHA-256 checksums of the two files above. |
 
-- **Pre-releases only, for now.** Until the plugin's first full release, every release is marked
-  **Pre-release** on GitHub and its name ends in `-beta.<n>` or `-rc.<n>` (for example
-  *SynesthesiaVibe Visualizer 0.1.0-beta.1*). The file names carry only the plugin version.
-- **Not notarized.** The plugin is ad-hoc signed and not notarized by Apple, so macOS warns when you
-  open the installer. [Step 1](#step-1-install-the-plugin) shows how to open it anyway.
+- **Releases and pre-releases.** A release is named after the plugin version (for example
+  *SynesthesiaVibe Visualizer 0.1.0*). Test builds are marked **Pre-release** on GitHub and their
+  name ends in `-beta.<n>` or `-rc.<n>`. The file names carry only the plugin version.
+- **Signed and notarized.** The installer and the plugin are signed with a Developer ID and
+  notarized by Apple, so macOS opens them without a warning.
 - **No Linux file.** Releases have no Linux package yet. See
   [Linux](#linux-experimental-untested-in-obs).
 
@@ -98,20 +96,10 @@ account only. It needs no administrator password. Next to it, it also puts
 `synesthesia-vibe-obs.plugin.dSYM`, the plugin's debug symbols (about 1.4 MB). OBS ignores that
 file; [Uninstall](#uninstall) removes it too.
 
-Because the installer is not notarized, double-clicking it shows a warning that macOS cannot check
-it for malicious software, and it does not open. To open it anyway:
-
-- **macOS 15 (Sequoia) and later:** double-click the `.pkg` once and dismiss the warning. Then
-  open System Settings → Privacy & Security, scroll to the message about the blocked installer
-  and click **Open Anyway**. Confirm, and the installer starts.
-- **macOS 14 (Sonoma) and earlier:** right-click (or Control-click) the `.pkg` → **Open**, then
-  click **Open** in the dialog.
-
-Follow the installer to the end. If it asks where to install, choose
+Double-click the `.pkg` and follow the installer to the end. If it asks where to install, choose
 **Install for me only**.
 
-From Terminal, this does the same without the warning dialogs (use the file name from the
-release):
+From Terminal, this does the same (use the file name from the release):
 
 ```sh
 installer -pkg ~/Downloads/<installer>.pkg -target CurrentUserHomeDirectory
@@ -128,8 +116,8 @@ installer -pkg ~/Downloads/<installer>.pkg -target CurrentUserHomeDirectory
    ```
 
    In Finder: Go → Go to Folder…, paste the folder path above, and drag the bundle in.
-3. A downloaded bundle carries macOS's quarantine flag. Remove it, or macOS may refuse to let OBS
-   load the plugin:
+3. The bundle is notarized, so OBS should load it as downloaded. If OBS does not load it, remove
+   macOS's download (quarantine) flag and restart OBS:
 
    ```sh
    xattr -dr com.apple.quarantine ~/Library/Application\ Support/obs-studio/plugins/synesthesia-vibe-obs.plugin

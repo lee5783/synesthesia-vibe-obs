@@ -4,8 +4,8 @@ Status: **Phase 1 built**, awaiting the user's loopback checklist (BlackHole on 
 Windows) before it is marked done. **Phase 2 (macOS) built, reviewed and checked in OBS**:
 tasks 1–6 are done, and its *Done when* checks passed on 2026-11-23 (the 1080p60 run, the
 integrated Done-when run and the OBS check of the "(first preset)" dialog fix). Task 7 (packaging)
-is partly done, with an ad-hoc signed `.plugin`, an unsigned `.pkg` and a zip. Notarization waits
-on Developer ID credentials and the pkg install into OBS is not verified yet, so Phase 2 is not
+builds a Developer ID signed and notarized `.plugin`, `.pkg` and zip on every tag (first run
+`v0.1.0-beta.1`, 2026-11-24). The pkg install into OBS is not verified yet, so Phase 2 is not
 closed. **Phase 4 (release and Linux) built and reviewed**: CI builds and
 checks macOS arm64 and Linux x86_64 on every PR, and a `v*` tag makes a draft prerelease with the
 macOS pkg, zip and checksums. Windows waits on Phase 3. Linux is experimental: built and checked
@@ -437,10 +437,10 @@ Xcode 27.2 and CMake 4.4.5.
 6. **Resolution:** a width × height setting (default 1920×1080) that calls `sv_resize` when it
    changes; an optional render-scale setting to save GPU. **Done.**
 7. **Packaging:** a signed and notarized `.plugin` bundle, plus install steps for
-   `~/Library/Application Support/obs-studio/plugins/`. **Partly done:** an ad-hoc signed,
-   arm64-only `.plugin`, an unsigned `.pkg` and a zip are built and inspected, and the install
-   steps are in `plugin/README.md`. Notarization is documented (`docs/integrations.md`) and waits
-   on Developer ID credentials. The pkg install into OBS is not verified yet.
+   `~/Library/Application Support/obs-studio/plugins/`. **Done in CI:** tag builds produce a
+   Developer ID signed, notarized and stapled arm64-only `.plugin`, `.pkg` and zip
+   (`docs/integrations.md`, *Signing and notarization*), and the install steps are in
+   `plugin/README.md`. The pkg install into OBS (TC-M04) is not verified yet.
 
 **Done when** on macOS (Apple Silicon, OBS 31+):
 
@@ -463,8 +463,7 @@ Xcode 27.2 and CMake 4.4.5.
   projector, a multiview and a program projector: all drew correctly, 0 skipped frames in 60 s.
 - **Passed:** the OBS check of the "(first preset)" fix (P2-010b). Opening the properties dialog
   on a folder-only source no longer saves `preset`.
-- **Still open for Phase 2:** notarization (Developer ID credentials) and the pkg install into OBS
-  (TC-M04).
+- **Still open for Phase 2:** the pkg install into OBS (TC-M04).
 
 ## Phase 3 — Native plugin, Windows (large, blocked)
 

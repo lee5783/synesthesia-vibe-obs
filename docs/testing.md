@@ -93,7 +93,7 @@ needs the runs below.
 - `actionlint` with shellcheck is the static check for workflow edits (0 errors at Phase 4).
 
 **Not covered by CI:** anything inside OBS, the Linux plugin in a real OBS session (P4-008), the
-pkg install, notarization.
+pkg install. Notarization runs in CI on signed tag builds (`docs/integrations.md`).
 
 ## How the Browser Source is verified
 
@@ -234,7 +234,7 @@ session). All passed, with 0 GL error lines and `Number of memory leaks: 0` on e
   for that, and windows can end up behind other apps.
 
 **Still open** (see `docs/concerns.md`, *Open checks*): the pkg install into OBS (TC-M04, P2-013),
-notarization (needs Developer ID credentials), Linux in OBS (P4-008, below) and the Phase 1
+Linux in OBS (P4-008, below) and the Phase 1
 loopback checklist.
 
 ## Mocking
@@ -289,7 +289,7 @@ loopback checklist.
   quote the log lines and numbers that matter.
 
 **User checklist (plugin):**
-- Real microphone and desktop-audio sources, Gatekeeper dialogs for the unnotarized pkg and zip,
+- Real microphone and desktop-audio sources, installing the notarized pkg and zip,
   the real Metal renderer, and OBS UI paths not exercised by the websocket (Renderer setting,
   Hotkeys settings page). These need a person.
 - **Linux in OBS (P4-008):** the CI `.deb` on Ubuntu 24.04 with OBS from the PPA, once in an X11

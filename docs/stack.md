@@ -143,11 +143,11 @@ build that has not been run in OBS). Both are built on the SynesthesiaVibe core,
 **Production:**
 - Browser Source: served locally from `browser-source/` on `http://localhost:8080/`; no hosting
   (D5 open).
-- Plugin: an ad-hoc-signed, arm64-only `synesthesia-vibe-obs.plugin` in
-  `~/Library/Application Support/obs-studio/plugins/`, installed from an unsigned `.pkg`
-  (current user only, macOS 12.0 minimum) or a zip. Users install per `plugin/README.md`. Not
-  notarized yet: Developer ID credentials are pending (`docs/integrations.md`). Distributed as
-  draft prereleases on GitHub Releases, built by `release.yaml`.
+- Plugin: a Developer ID signed and notarized, arm64-only `synesthesia-vibe-obs.plugin` in
+  `~/Library/Application Support/obs-studio/plugins/`, installed from a signed, notarized `.pkg`
+  (current user only, macOS 12.0 minimum) or a zip. Users install per `plugin/README.md`. Local
+  builds are ad-hoc signed with an unsigned pkg. Distributed on GitHub Releases as drafts built
+  by `release.yaml` that a person publishes.
 - Plugin on Linux: a `.deb` (Ubuntu 24.04 x86_64, OBS 32.2.0+ from the PPA). It is a CI workflow
   artifact only, not a release asset, until it is tested in OBS. Flatpak OBS is unsupported.
 
