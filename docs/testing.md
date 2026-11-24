@@ -233,9 +233,17 @@ session). All passed, with 0 GL error lines and `Number of memory leaks: 0` on e
   time about 10.6 ms. Opening projectors needs the user to close them; OBS has no websocket request
   for that, and windows can end up behind other apps.
 
-**Still open** (see `docs/concerns.md`, *Open checks*): the pkg install into OBS (TC-M04, P2-013),
-Linux in OBS (P4-008, below) and the Phase 1
-loopback checklist.
+**Release install, 2026-11-24** (TC-M04, closes P2-013; the published `v0.1.0` assets, OBS
+33.0.3; report `develop/evidence/P4-003-pkg-install.md` in the Phase 4 session):
+- **Option A:** `installer -target CurrentUserHomeDirectory` on the quarantined, notarized pkg.
+  It needed no admin password and installed the bundle and `.dSYM`. The receipt sits on volume
+  `~`: `pkgutil` needs `--volume ~`, which the README now gives.
+- **Option B:** the zip bundle with the quarantine flag on every file loaded with no prompt.
+- **Both:** the load lines (TC-M03), the preset animating next to image, colour and text sources,
+  0 GL error lines and `Number of memory leaks: 0` on quit.
+
+**Still open** (see `docs/concerns.md`, *Open checks*): Linux in OBS (P4-008, below) and the
+Phase 1 loopback checklist.
 
 ## Mocking
 
