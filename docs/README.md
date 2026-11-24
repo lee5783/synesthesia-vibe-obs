@@ -2,7 +2,7 @@
 
 The pages below describe the Browser Source page (`browser-source/`) and the native plugin
 (`plugin/`: Phase 2 macOS with tasks 1–6 built and its OBS checks passed on 2026-11-23, packaging
-signed and notarized in CI, with the pkg install unverified; Phase 4 CI, a draft-release
+signed and notarized in CI, `v0.1.0` published and its install checked; Phase 4 CI, a draft-release
 workflow and an experimental Linux build, untested in OBS).
 `../PLAN.md` holds the phases, the open decisions and the risks.
 

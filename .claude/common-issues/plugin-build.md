@@ -87,13 +87,15 @@
   passes `--identifier '@MACOS_BUNDLEID@'` and `--version '@CMAKE_PROJECT_VERSION@'` to
   `pkgbuild` through `execute_process`, which runs no shell, so the quotes become part of the
   values. Upgrades still match, because every build has the same quoted id.
-- **Fix / workaround:** `pkgutil --forget "'io.github.lee5783.synesthesia-vibe-obs'"` (single quotes
-  inside double quotes), as in `plugin/README.md`, *Uninstall*. A real fix is a project-owned
+- **Fix / workaround:** `pkgutil --volume ~ --forget "'io.github.lee5783.synesthesia-vibe-obs'"`
+  (single quotes inside double quotes), as in `plugin/README.md`, *Uninstall*. The installer
+  installs for the current user, so the receipt is on volume `~`. Without `--volume ~`, `pkgutil`
+  looks on `/` and reports `No receipt … found at '/'`. A real fix is a project-owned
   `create-package.cmake` configured to the same build-dir path (`docs/concerns.md`); it would
   also let the payload drop the `.dSYM`.
 - **How to verify this is still current:** `pkgutil --expand synesthesia-vibe-obs.pkg x` and read
-  `x/*/PackageInfo` (`identifier=` and `version=`). Not yet checked against a real installed
-  receipt (deferred with the pkg install check).
+  `x/*/PackageInfo` (`identifier=` and `version=`), or after an install, `pkgutil --volume ~
+  --pkgs`. Checked against a real receipt on 2026-11-24 (TC-M04).
 
 ## `pkgutil --payload-files` lists `._*` entries
 

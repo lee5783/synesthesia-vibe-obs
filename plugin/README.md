@@ -393,13 +393,16 @@ That is expected: the list shows your last choice and does not follow auto-cycle
 3. If you used the installer, you can also remove its receipt:
 
    ```sh
-   pkgutil --forget "'io.github.lee5783.synesthesia-vibe-obs'"
+   pkgutil --volume ~ --forget "'io.github.lee5783.synesthesia-vibe-obs'"
    ```
 
-   Type it exactly as shown, single quotes inside double quotes. The receipt's identifier
-   includes the single quotes as part of its name; `pkgutil --pkgs` lists it as
-   `'io.github.lee5783.synesthesia-vibe-obs'`. If you paste that name without the outer double
-   quotes, the shell removes the single quotes and `pkgutil` finds no receipt.
+   Type it exactly as shown.
+   - `--volume ~`: the installer installs for your user only, so the receipt is kept in your home
+     folder, not on the system disk.
+   - Single quotes inside double quotes: the receipt's identifier includes the single quotes as
+     part of its name. `pkgutil --volume ~ --pkgs` lists it as
+     `'io.github.lee5783.synesthesia-vibe-obs'`. If you paste that name without the outer double
+     quotes, the shell removes the single quotes and `pkgutil` finds no receipt.
 
 4. Visualizer sources in your scene collections cannot render without the plugin. Remove them from
    your scenes before you uninstall, or afterwards if OBS still lists them.

@@ -1,16 +1,15 @@
 # SynesthesiaVibe for OBS — plan
 
 Status: **Phase 1 built**, awaiting the user's loopback checklist (BlackHole on macOS, VB-Cable on
-Windows) before it is marked done. **Phase 2 (macOS) built, reviewed and checked in OBS**:
-tasks 1–6 are done, and its *Done when* checks passed on 2026-11-23 (the 1080p60 run, the
-integrated Done-when run and the OBS check of the "(first preset)" dialog fix). Task 7 (packaging)
-builds a Developer ID signed and notarized `.plugin`, `.pkg` and zip on every tag (first run
-`v0.1.0-beta.1`, 2026-11-24). The pkg install into OBS is not verified yet, so Phase 2 is not
-closed. **Phase 4 (release and Linux) built and reviewed**: CI builds and
-checks macOS arm64 and Linux x86_64 on every PR, and a `v*` tag makes a draft prerelease with the
-macOS pkg, zip and checksums. Windows waits on Phase 3. Linux is experimental: built and checked
+Windows) before it is marked done. **Phase 2 (macOS) done**: tasks 1–7 are done, and its *Done
+when* checks passed on 2026-11-23 (the 1080p60 run, the integrated Done-when run and the OBS check
+of the "(first preset)" dialog fix). Task 7 (packaging) builds a Developer ID signed and notarized
+`.plugin`, `.pkg` and zip on every tag, and the installed `v0.1.0` release passed in OBS on
+2026-11-24 (TC-M04). **Phase 4 (release and Linux) built and reviewed**: CI builds and checks macOS
+arm64 and Linux x86_64 on every PR, and a `v*` tag makes a draft release with the macOS pkg, zip
+and checksums. **`v0.1.0` was published on 2026-11-24.** Windows waits on Phase 3. Linux is experimental: built and checked
 in CI, not attached to releases until the user's Ubuntu X11/Wayland test. D1 and D4 are locked;
-D5 (Pages) is open and skipped for now. Last updated 2026-11-23.
+D5 (Pages) is open and skipped for now. Last updated 2026-11-24.
 
 ## Goal
 
@@ -440,7 +439,8 @@ Xcode 27.2 and CMake 4.4.5.
    `~/Library/Application Support/obs-studio/plugins/`. **Done in CI:** tag builds produce a
    Developer ID signed, notarized and stapled arm64-only `.plugin`, `.pkg` and zip
    (`docs/integrations.md`, *Signing and notarization*), and the install steps are in
-   `plugin/README.md`. The pkg install into OBS (TC-M04) is not verified yet.
+   `plugin/README.md`. **Done.** The installed `v0.1.0` pkg and zip passed in OBS on 2026-11-24
+   (TC-M04).
 
 **Done when** on macOS (Apple Silicon, OBS 31+):
 
@@ -463,7 +463,8 @@ Xcode 27.2 and CMake 4.4.5.
   projector, a multiview and a program projector: all drew correctly, 0 skipped frames in 60 s.
 - **Passed:** the OBS check of the "(first preset)" fix (P2-010b). Opening the properties dialog
   on a folder-only source no longer saves `preset`.
-- **Still open for Phase 2:** the pkg install into OBS (TC-M04).
+- **Passed:** the release install (TC-M04, 2026-11-24). The published `v0.1.0` pkg and the
+  quarantined zip both loaded, rendered and quit with no leaks. Phase 2 is done.
 
 ## Phase 3 — Native plugin, Windows (large, blocked)
 

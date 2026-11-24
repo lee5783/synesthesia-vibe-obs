@@ -281,9 +281,9 @@ To bump an action:
   `git push --delete origin <tag>`. The pipeline was checked once this way with the throwaway tag
   `v0.1.0-beta.0`: all four jobs green, the checksums `OK`, no `.deb`; then the draft and tag were
   deleted.
-- User-facing download and checksum steps: `plugin/README.md`, *Download*. No release has been
-  published yet, and the pkg install into OBS is not verified end to end
-  (`docs/concerns.md`, *Open checks*).
+- User-facing download and checksum steps: `plugin/README.md`, *Download*. `v0.1.0` was
+  published on 2026-11-24. Its pkg and zip were installed into OBS and checked the same day
+  (TC-M04, `docs/testing.md`).
 
 ## Local build and install
 
@@ -483,7 +483,9 @@ ditto -c -k --norsrc --noextattr --keepParent synesthesia-vibe-obs.plugin synest
 - **Receipt id:** the template passes `--identifier '@MACOS_BUNDLEID@'` and
   `--version '@CMAKE_PROJECT_VERSION@'` through `execute_process`, which uses no shell, so the
   receipt id is `'io.github.lee5783.synesthesia-vibe-obs'` and the version `'0.1.0'`, single
-  quotes included. `plugin/README.md` gives the matching `pkgutil --forget` command.
+  quotes included. A `CurrentUserHomeDirectory` install keeps the receipt on volume `~`, so every
+  `pkgutil` call needs `--volume ~` (checked on 2026-11-24, TC-M04). `plugin/README.md` gives the
+  matching `pkgutil --volume ~ --forget` command.
 - **Zip:** `--norsrc --noextattr` keeps `._*` entries and extended attributes out; the zip holds
   only the bundle.
 - **Names:** the Installer title and `CFBundleDisplayName` are the project name

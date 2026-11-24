@@ -4,7 +4,7 @@
 
 `plugin/` holds the Phase 2 macOS plugin: tasks 1–6 are built and reviewed, packaging is done in CI:
 tag builds sign with Developer ID and notarize (first run `v0.1.0-beta.1`, 2026-11-24). Its OBS checks (P2-011, P2-012, P2-010b) passed on
-2026-11-23; the pkg install into OBS is still open (*Open checks*). Phase 4 added CI, a
+2026-11-23; the release pkg and zip were installed into OBS and checked on 2026-11-24 (TC-M04). Phase 4 added CI, a
 draft-prerelease release pipeline and an experimental Linux x86_64 build that has never run in
 OBS. Gotchas with a quick workaround are in
 `.claude/COMMON-ISSUES.md`. Phases, risks and the filed-or-not state of upstream asks #1–#3 and
@@ -92,8 +92,8 @@ using the run id. No cache includes `plugin/cmake/`; keep it that way.
 - Quoted receipt id: the vendored `create-package.cmake.in` passes `--identifier
   '@MACOS_BUNDLEID@'` and `--version '@CMAKE_PROJECT_VERSION@'` through `execute_process` (no
   shell), so the pkg receipt is `'io.github.lee5783.synesthesia-vibe-obs'` and the version `'0.1.0'`,
-  quotes included. Upgrades still match. Users must type the quotes for `pkgutil --forget`
-  (`plugin/README.md`, *Uninstall*).
+  quotes included. Upgrades still match. Users must type the quotes and `--volume ~` for
+  `pkgutil --forget` (`plugin/README.md`, *Uninstall*).
 - dSYM in the payload: the Release pkg installs `synesthesia-vibe-obs.plugin.dSYM` (about 1.4 MB)
   next to the bundle. OBS ignores it; `plugin/README.md` removes it on uninstall.
 - Installer title and `CFBundleDisplayName` are `synesthesia-vibe-obs`, not "SynesthesiaVibe
@@ -466,12 +466,8 @@ Phase 2's OBS checks passed on 2026-11-23: the P2-011 Done-when run on the integ
 (including the TC-M03 smoke load of the Phase 4 loader split), the P2-012 1080p60 measurement and
 the P2-010b dialog check (`docs/testing.md`, *Done-when run, 2026-11-23*). Still open:
 
-1. **P2-013 / TC-M04, pkg install into OBS: medium for the README, low for the code.** The
-   2026-11-23 runs used a dev install (`ditto`). Install Options A and B from a notarized
-   release, OBS loading the quarantined zip bundle, `pkgutil --pkgs` / `--forget` against a real receipt (and whether a
-   `CurrentUserHomeDirectory` receipt needs `--volume ~`) are unverified end to end.
-2. **Linux in OBS (P4-008):** X11 and Wayland on Ubuntu 24.04 (*Missing Critical Features*).
-3. **Phase 1 loopback checklist:** with the user (*Missing Critical Features*).
+1. **Linux in OBS (P4-008):** X11 and Wayland on Ubuntu 24.04 (*Missing Critical Features*).
+2. **Phase 1 loopback checklist:** with the user (*Missing Critical Features*).
 
 How to run them: `docs/testing.md`.
 
@@ -525,7 +521,6 @@ builds the library from source can't fix this without patching it.
   checklist).
 
 **Plugin:**
-- The pkg install into OBS (TC-M04, *Open Checks*). Priority: Medium.
 - The Linux build in OBS on X11 and Wayland (P4-008). Priority: High before Linux ships.
 - The plain `ubuntu-x86_64` preset (CI uses `ubuntu-ci-x86_64`). Priority: Low.
 - Real microphone and desktop-audio sources (10 ms chunks; only a Media Source was tested), the

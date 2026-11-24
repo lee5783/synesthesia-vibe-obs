@@ -17,8 +17,9 @@ and the plugin consistent.
 **Consequences:**
 - `LICENSE` at the repo root holds the canonical GPL-2.0 text from gnu.org. That text alone grants
   "version 2" only; the **"or any later version" grant** is stated here and in the `PLAN.md` D1
-  row. Source files carry no per-file SPDX line (the standard header has none). A licence line in
-  the root `README.md`, or an SPDX line in the header, is an optional follow-up on request only.
+  row. Source files carry no per-file SPDX line (the standard header has none). The root `README.md`
+  carries a licence line (added 2026-11-24 on request). An SPDX line in the header is an optional
+  follow-up on request only.
 - The SynesthesiaVibe core stays **MIT** under its own `LICENSE` and `NOTICE`: the submodule
   `external/synesthesia-vibe/`, and the release files that `browser-source/fetch-dist.sh` copies
   into `browser-source/dist/` (`dist/LICENSE`, `dist/NOTICE`). Its vendored components keep their
